@@ -1,7 +1,7 @@
 {
   "name": "年間収支計画表",
   "short_name": "年間収支",
-  "start_url": "./年間収支計画表.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f5f3",
   "theme_color": "#4a7c6e",
