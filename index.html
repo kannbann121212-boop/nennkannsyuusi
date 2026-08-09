@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>年間収支計画表</title>
+<link rel="icon" type="image/png" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4a7c6e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="年間収支">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root{
+    --bg:#f5f5f3;
+    --card:#ffffff;
+    --border:#e2e0db;
+    --text:#2b2b28;
+    --sub:#8a8680;
+    --income:#4a7c6e;
+    --income-light:#e8f2ef;
+    --expense:#b5654f;
+    --expense-light:#f5eae7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    max-width:480px;
+    margin:0 auto;
+    padding-bottom:40px;
+  }
+  header{
+    padding:18px 16px 12px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{
+    font-size:17px;
+    margin:0 0 2px;
+    font-weight:600;
+  }
+  .year-select{
+    font-size:12px;
+    color:var(--sub);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-top:4px;
+  }
+  .year-select input{
+    width:64px;
+    font-size:13px;
+    padding:3px 6px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    background:var(--card);
+    color:var(--text);
+  }
+
+  .section{
+    margin:14px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .section.income-section{border-top:3px solid var(--income);}
+  .section.expense-section{border-top:3px solid var(--expense);}
+
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .income-section .section-title{color:var(--income);}
+  .expense-section .section-title{color:var(--expense);}
+  .section-total{
+    font-size:14px;
+    font-weight:700;
+  }
+
+  .item-row{
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:4px;
+    padding:8px 0;
+    border-bottom:1px solid #f0efec;
+  }
+  .item-row:last-of-type{border-bottom:none;}
+  .item-row input[type=text]{
+    flex:1.2;
+    min-width:0;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fafaf8;
+    color:var(--text);
+  }
+  .item-row input[type=number]{
+    min-width:0;
+    text-align:right;
+    font-size:12px;
+    padding:7px 4px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fafaf8;
+    color:var(--text);
+  }
+  .item-row .amount-input{flex:1;}
+  .item-row .count-input{flex:0.55;}
+  .item-row .times-label,
+  .item-row .unit-label{
+    font-size:11px;
+    color:var(--sub);
+    flex-shrink:0;
+  }
+  .item-row .item-total{
+    font-size:11px;
+    font-weight:700;
+    flex-shrink:0;
+    flex-basis:64px;
+    white-space:nowrap;
+    text-align:right;
+  }
+  .item-row .del-btn{
+    border:none;
+    background:none;
+    color:var(--sub);
+    font-size:16px;
+    line-height:1;
+    padding:2px 0 2px 2px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+
+  .add-item-btn{
+    width:100%;
+    margin-top:10px;
+    padding:9px;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    background:none;
+    font-size:13px;
+    color:var(--sub);
+  }
+  .income-section .add-item-btn{color:var(--income); border-color:var(--income);}
+  .expense-section .add-item-btn{color:var(--expense); border-color:var(--expense);}
+
+  /* 年間サマリー */
+  .summary-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .summary-box{
+    background:#fafaf8;
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .summary-box .label{
+    font-size:11px;
+    color:var(--sub);
+    margin-bottom:2px;
+  }
+  .summary-box .value{
+    font-size:17px;
+    font-weight:700;
+  }
+  .summary-box.full{
+    grid-column:1 / -1;
+  }
+  .balance-plus{color:var(--income);}
+  .balance-minus{color:var(--expense);}
+
+  .monthly-hint{
+    text-align:center;
+    font-size:12px;
+    color:var(--sub);
+    margin-top:6px;
+  }
+
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color:var(--sub);
+    margin:20px 20px 0;
+    line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>年間収支計画表</h1>
+  <div class="year-select">
+    <span>対象年</span>
+    <input type="number" id="yearInput" value="2026">
+  </div>
+</header>
+
+<div class="section income-section">
+  <div class="section-title">
+    <span>収入項目</span>
+    <span class="section-total" id="incomeTotal">¥0</span>
+  </div>
+  <div id="incomeList"></div>
+  <button class="add-item-btn" id="addIncomeBtn">＋ 収入項目を追加</button>
+</div>
+
+<div class="section expense-section">
+  <div class="section-title">
+    <span>支出項目</span>
+    <span class="section-total" id="expenseTotal">¥0</span>
+  </div>
+  <div id="expenseList"></div>
+  <button class="add-item-btn" id="addExpenseBtn">＋ 支出項目を追加</button>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>年間サマリー</span></div>
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="label">収入合計</div>
+      <div class="value" id="sumIncome">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">支出合計</div>
+      <div class="value" id="sumExpense">¥0</div>
+    </div>
+    <div class="summary-box full">
+      <div class="label">年間差引(予算)</div>
+      <div class="value" id="sumBalance">¥0</div>
+    </div>
+  </div>
+  <div class="monthly-hint" id="monthlyHint"></div>
+</div>
+
+<div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
+
+<script>
+const STORAGE_KEY = 'nenkan-shuushi-keikaku-v2';
+
+let state = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && parsed.income && parsed.expense){
+        parsed.income.forEach(it=>{ if(it.count===undefined) it.count=1; });
+        parsed.expense.forEach(it=>{ if(it.count===undefined) it.count=1; });
+        return parsed;
+      }
+    }
+  }catch(e){}
+  return {
+    year: 2026,
+    income: [
+      { name:'給与', amount:'', count:12 }
+    ],
+    expense: [
+      { name:'家賃', amount:'', count:12 },
+      { name:'食費', amount:'', count:12 },
+      { name:'光熱費', amount:'', count:12 }
+    ]
+  };
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function yen(n){
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+function yenShort(n){
+  const r = Math.round(n);
+  if(Math.abs(r) >= 10000){
+    const man = r/10000;
+    const manStr = Number.isInteger(man) ? man : man.toFixed(1);
+    return manStr + '万';
+  }
+  return r.toLocaleString('ja-JP');
+}
+
+function sumList(list){
+  return list.reduce((s,it)=> s + ((parseFloat(it.amount)||0) * (parseFloat(it.count)||0)), 0);
+}
+function itemTotal(item){
+  return (parseFloat(item.amount)||0) * (parseFloat(item.count)||0);
+}
+
+function renderList(containerId, list, colorClass){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  list.forEach((item, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="text" value="${escapeAttr(item.name)}" placeholder="項目名" maxlength="10">
+      <input type="number" inputmode="numeric" class="amount-input" value="${item.amount}" placeholder="金額">
+      <span class="times-label">×</span>
+      <input type="number" inputmode="numeric" class="count-input" value="${item.count}">
+      <span class="unit-label">回</span>
+      <span class="item-total">${yenShort(itemTotal(item))}</span>
+      <button class="del-btn">×</button>`;
+    const nameInput = row.querySelector('input[type=text]');
+    const amountInput = row.querySelector('.amount-input');
+    const countInput = row.querySelector('.count-input');
+    const totalLabel = row.querySelector('.item-total');
+    const delBtn = row.querySelector('.del-btn');
+
+    nameInput.addEventListener('input', e=>{
+      item.name = e.target.value;
+      saveState();
+    });
+    amountInput.addEventListener('input', e=>{
+      item.amount = e.target.value;
+      totalLabel.textContent = yenShort(itemTotal(item));
+      saveState();
+      updateTotals();
+    });
+    countInput.addEventListener('input', e=>{
+      item.count = e.target.value;
+      totalLabel.textContent = yenShort(itemTotal(item));
+      saveState();
+      updateTotals();
+    });
+    delBtn.addEventListener('click', ()=>{
+      list.splice(idx,1);
+      saveState();
+      render();
+    });
+    container.appendChild(row);
+  });
+}
+
+function updateTotals(){
+  const incomeTotal = sumList(state.income);
+  const expenseTotal = sumList(state.expense);
+  const balance = incomeTotal - expenseTotal;
+
+  document.getElementById('incomeTotal').textContent = yen(incomeTotal);
+  document.getElementById('expenseTotal').textContent = yen(expenseTotal);
+  document.getElementById('sumIncome').textContent = yen(incomeTotal);
+  document.getElementById('sumExpense').textContent = yen(expenseTotal);
+
+  const balEl = document.getElementById('sumBalance');
+  balEl.textContent = yen(balance);
+  balEl.className = 'value ' + (balance>=0 ? 'balance-plus' : 'balance-minus');
+
+  const hint = document.getElementById('monthlyHint');
+  hint.textContent = '(月あたり平均 ' + yen(balance/12) + ')';
+}
+
+function escapeAttr(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function render(){
+  document.getElementById('yearInput').value = state.year;
+  renderList('incomeList', state.income);
+  renderList('expenseList', state.expense);
+  updateTotals();
+}
+
+document.getElementById('yearInput').addEventListener('change', e=>{
+  state.year = parseInt(e.target.value) || state.year;
+  saveState();
+});
+
+document.getElementById('addIncomeBtn').addEventListener('click', ()=>{
+  state.income.push({ name:'', amount:'', count:12 });
+  saveState();
+  render();
+});
+document.getElementById('addExpenseBtn').addEventListener('click', ()=>{
+  state.expense.push({ name:'', amount:'', count:12 });
+  saveState();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
