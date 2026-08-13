@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>予算の組み方フローチャート</title>
+<style>
+  :root{
+    --bg:#f5f5f3;
+    --card:#ffffff;
+    --border:#e2e0db;
+    --text:#2b2b28;
+    --sub:#8a8680;
+    --q1:#4a7c6e;      /* 固定×定期 */
+    --q1-light:#e8f2ef;
+    --q2:#5b7fa0;      /* 固定×不定期 */
+    --q2-light:#e9eff5;
+    --q3:#c99a3e;      /* 変動×定期 */
+    --q3-light:#faf1de;
+    --q4:#b5654f;      /* 変動×不定期 */
+    --q4-light:#f5eae7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    max-width:480px;
+    margin:0 auto;
+    padding-bottom:40px;
+  }
+  header{
+    padding:18px 16px 12px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{ font-size:17px; margin:0 0 2px; font-weight:600; }
+  .sub-text{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.6; }
+  .app-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .app-nav::-webkit-scrollbar{ display:none; }
+  .app-nav a{
+    flex-shrink:0;
+    font-size:11px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--border);
+    color:var(--sub);
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .app-nav a.active{
+    background:var(--text);
+    border-color:var(--text);
+    color:#fff;
+    font-weight:600;
+  }
+
+  .section{
+    margin:14px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-title .count{ font-size:11px; color:var(--sub); font-weight:400; }
+
+  /* --- 説明フローチャート(SVG) --- */
+  .flow-wrap{ text-align:center; }
+  .flow-wrap svg{ width:100%; height:auto; }
+  .legend-line{
+    font-size:11px; color:var(--sub); text-align:center; margin-top:8px; line-height:1.7;
+  }
+
+  /* --- 項目カード --- */
+  .item-card{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    background:#fafaf8;
+  }
+  .item-row-top{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .item-row-top input[type=text]{
+    flex:1.3;
+    min-width:0;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top input[type=number]{
+    flex:1;
+    min-width:0;
+    text-align:right;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top .del-btn{
+    border:none; background:none; color:var(--sub);
+    font-size:17px; line-height:1; padding:2px 2px; cursor:pointer; flex-shrink:0;
+  }
+  .toggle-row{ display:flex; gap:6px; }
+  .seg{
+    flex:1;
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .seg button{
+    flex:1;
+    border:none;
+    background:#fff;
+    font-size:11px;
+    padding:7px 0;
+    color:var(--sub);
+    cursor:pointer;
+  }
+  .seg button.active{
+    background:var(--text);
+    color:#fff;
+    font-weight:600;
+  }
+  .item-quadrant-tag{
+    font-size:10px;
+    margin-top:6px;
+    text-align:right;
+    color:var(--sub);
+  }
+
+  .add-item-btn{
+    width:100%;
+    margin-top:6px;
+    padding:9px;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    background:none;
+    font-size:13px;
+    color:var(--sub);
+  }
+  .reload-btn{
+    width:100%;
+    margin-top:6px;
+    padding:8px;
+    border:none;
+    border-radius:8px;
+    background:var(--q1-light);
+    color:var(--q1);
+    font-size:12px;
+    font-weight:600;
+  }
+  .empty-note{
+    font-size:12px; color:var(--sub); text-align:center; padding:14px 4px;
+  }
+
+  /* --- 4象限マトリクス --- */
+  .matrix-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .quad-box{
+    border-radius:10px;
+    padding:10px 10px;
+    border-top:3px solid;
+  }
+  .quad-box.q1{ background:var(--q1-light); border-color:var(--q1); }
+  .quad-box.q2{ background:var(--q2-light); border-color:var(--q2); }
+  .quad-box.q3{ background:var(--q3-light); border-color:var(--q3); }
+  .quad-box.q4{ background:var(--q4-light); border-color:var(--q4); }
+  .quad-title{ font-size:12px; font-weight:700; margin-bottom:2px; }
+  .quad-box.q1 .quad-title{ color:var(--q1); }
+  .quad-box.q2 .quad-title{ color:var(--q2); }
+  .quad-box.q3 .quad-title{ color:var(--q3); }
+  .quad-box.q4 .quad-title{ color:var(--q4); }
+  .quad-total{ font-size:15px; font-weight:700; margin-bottom:4px; }
+  .quad-tip{ font-size:10.5px; color:var(--text); opacity:.8; line-height:1.5; margin-bottom:6px; }
+  .quad-items{ font-size:10.5px; color:var(--sub); line-height:1.6; }
+
+  .unclassified-note{
+    font-size:11px; color:var(--q4); text-align:center; margin-top:10px;
+  }
+
+  .footer-note{
+    text-align:center; font-size:11px; color:var(--sub);
+    margin:20px 20px 0; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>予算の組み方フローチャート</h1>
+  <div class="sub-text">支出項目を「固定/変動」「定期/不定期」の2軸で分類して、それぞれに合った予算の組み方を考えます</div>
+  <nav class="app-nav">
+    <a href="index.html">年間収支</a>
+    <a href="flowchart.html" class="active">予算配分</a>
+    <a href="tokubetsuhi.html">特別費積立</a>
+    <a href="lifeplan.html">ライフプラン</a>
+  </nav>
+</header>
+
+<div class="section">
+  <div class="section-title"><span>分類の考え方</span></div>
+  <div class="flow-wrap" id="flowSvg"></div>
+  <div class="legend-line">
+    毎月・毎年など決まった周期で発生する → 定期／たまにしか発生しない → 不定期<br>
+    金額がほぼ一定 → 固定／その都度変わる → 変動
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">
+    <span>支出項目を分類する</span>
+    <span class="count" id="itemCount"></span>
+  </div>
+  <div id="itemList"></div>
+  <div class="empty-note" id="emptyNote" style="display:none;">項目がありません。下のボタンから追加してください</div>
+  <button class="add-item-btn" id="addItemBtn">＋ 項目を追加</button>
+  <button class="reload-btn" id="reloadBtn">年間収支計画表から支出項目を読み込む</button>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>4象限マトリクス</span></div>
+  <div class="matrix-grid">
+    <div class="quad-box q1">
+      <div class="quad-title">固定 × 定期</div>
+      <div class="quad-total" id="q1Total">¥0</div>
+      <div class="quad-tip">毎月ほぼ同額。給料日に先取りして専用口座へ。</div>
+      <div class="quad-items" id="q1Items"></div>
+    </div>
+    <div class="quad-box q2">
+      <div class="quad-title">固定 × 不定期</div>
+      <div class="quad-total" id="q2Total">¥0</div>
+      <div class="quad-tip">年1〜数回のまとまった支出。月割りで積み立てておく。</div>
+      <div class="quad-items" id="q2Items"></div>
+    </div>
+    <div class="quad-box q3">
+      <div class="quad-title">変動 × 定期</div>
+      <div class="quad-total" id="q3Total">¥0</div>
+      <div class="quad-tip">毎月発生するが金額が変わる。上限を決めて管理。</div>
+      <div class="quad-items" id="q3Items"></div>
+    </div>
+    <div class="quad-box q4">
+      <div class="quad-title">変動 × 不定期</div>
+      <div class="quad-total" id="q4Total">¥0</div>
+      <div class="quad-tip">予測しにくい支出。予備費・バッファ資金で備える。</div>
+      <div class="quad-items" id="q4Items"></div>
+    </div>
+  </div>
+  <div class="unclassified-note" id="unclassifiedNote"></div>
+</div>
+
+<div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
+
+<script>
+const SOURCE_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
+const SELF_KEY = 'yosan-kumitate-flowchart-v1';
+
+let state = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(SELF_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.items)) return parsed;
+    }
+  }catch(e){}
+  // 初回は年間収支計画表の支出項目から自動で取り込む
+  const seeded = seedFromSource([]);
+  return { items: seeded };
+}
+
+function saveState(){
+  localStorage.setItem(SELF_KEY, JSON.stringify(state));
+}
+
+function loadSourceExpenseList(){
+  try{
+    const raw = localStorage.getItem(SOURCE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.expense)) return parsed.expense;
+    }
+  }catch(e){}
+  return [];
+}
+
+function seedFromSource(existingItems){
+  const source = loadSourceExpenseList();
+  const existingNames = new Set(existingItems.map(it=>it.name));
+  const added = [];
+  source.forEach(it=>{
+    const name = (it.name||'').trim();
+    if(!name || existingNames.has(name)) return;
+    added.push({
+      id: 'i' + Date.now() + Math.random().toString(16).slice(2),
+      name: name,
+      amount: it.amount || '',
+      fixed: null,
+      regular: null
+    });
+    existingNames.add(name);
+  });
+  return existingItems.concat(added);
+}
+
+function yen(n){
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+function escapeAttr(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderItemList(){
+  const container = document.getElementById('itemList');
+  container.innerHTML = '';
+  document.getElementById('emptyNote').style.display = state.items.length ? 'none' : 'block';
+  document.getElementById('itemCount').textContent = state.items.length ? state.items.length + '件' : '';
+
+  state.items.forEach((item, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="item-row-top">
+        <input type="text" value="${escapeAttr(item.name)}" placeholder="項目名" maxlength="14">
+        <input type="number" inputmode="numeric" value="${item.amount}" placeholder="金額">
+        <button class="del-btn">×</button>
+      </div>
+      <div class="toggle-row">
+        <div class="seg fixed-seg">
+          <button data-val="true" class="${item.fixed===true?'active':''}">固定</button>
+          <button data-val="false" class="${item.fixed===false?'active':''}">変動</button>
+        </div>
+        <div class="seg regular-seg">
+          <button data-val="true" class="${item.regular===true?'active':''}">定期</button>
+          <button data-val="false" class="${item.regular===false?'active':''}">不定期</button>
+        </div>
+      </div>
+      <div class="item-quadrant-tag">${quadrantLabel(item)}</div>`;
+
+    const nameInput = card.querySelector('input[type=text]');
+    const amountInput = card.querySelector('input[type=number]');
+    const delBtn = card.querySelector('.del-btn');
+    const fixedBtns = card.querySelectorAll('.fixed-seg button');
+    const regularBtns = card.querySelectorAll('.regular-seg button');
+    const tag = card.querySelector('.item-quadrant-tag');
+
+    nameInput.addEventListener('input', e=>{ item.name = e.target.value; saveState(); });
+    amountInput.addEventListener('input', e=>{ item.amount = e.target.value; saveState(); renderMatrix(); });
+    delBtn.addEventListener('click', ()=>{ state.items.splice(idx,1); saveState(); render(); });
+
+    fixedBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        item.fixed = btn.dataset.val === 'true';
+        fixedBtns.forEach(b=>b.classList.toggle('active', b===btn));
+        tag.textContent = quadrantLabel(item);
+        saveState(); renderMatrix();
+      });
+    });
+    regularBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        item.regular = btn.dataset.val === 'true';
+        regularBtns.forEach(b=>b.classList.toggle('active', b===btn));
+        tag.textContent = quadrantLabel(item);
+        saveState(); renderMatrix();
+      });
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function quadrantLabel(item){
+  if(item.fixed===null || item.regular===null) return '未分類';
+  if(item.fixed && item.regular) return '固定×定期';
+  if(item.fixed && !item.regular) return '固定×不定期';
+  if(!item.fixed && item.regular) return '変動×定期';
+  return '変動×不定期';
+}
+
+function renderMatrix(){
+  const totals = { q1:0, q2:0, q3:0, q4:0 };
+  const names = { q1:[], q2:[], q3:[], q4:[] };
+  let unclassified = 0;
+
+  state.items.forEach(item=>{
+    const amt = parseFloat(item.amount) || 0;
+    if(item.fixed===null || item.regular===null){ unclassified++; return; }
+    let key;
+    if(item.fixed && item.regular) key='q1';
+    else if(item.fixed && !item.regular) key='q2';
+    else if(!item.fixed && item.regular) key='q3';
+    else key='q4';
+    totals[key]+=amt;
+    if(item.name) names[key].push(item.name);
+  });
+
+  ['q1','q2','q3','q4'].forEach(k=>{
+    document.getElementById(k+'Total').textContent = yen(totals[k]);
+    document.getElementById(k+'Items').textContent = names[k].length ? names[k].join('・') : '';
+  });
+
+  const note = document.getElementById('unclassifiedNote');
+  note.textContent = unclassified>0 ? `未分類の項目が${unclassified}件あります` : '';
+}
+
+document.getElementById('addItemBtn').addEventListener('click', ()=>{
+  state.items.push({ id:'i'+Date.now()+Math.random().toString(16).slice(2), name:'', amount:'', fixed:null, regular:null });
+  saveState();
+  render();
+});
+
+document.getElementById('reloadBtn').addEventListener('click', ()=>{
+  const before = state.items.length;
+  state.items = seedFromSource(state.items);
+  saveState();
+  render();
+  if(state.items.length === before){
+    alert('新しく追加できる支出項目はありませんでした');
+  }
+});
+
+function renderFlowSvg(){
+  const svg = `
+  <svg viewBox="0 0 432 300" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#b0aca4"/>
+      </marker>
+    </defs>
+    <style>
+      .box{fill:#fff;stroke:#e2e0db;stroke-width:1;}
+      .qbox{stroke-width:1.5;}
+      .lbl{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;font-size:11px;fill:#2b2b28;}
+      .lbl2{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;font-size:10px;fill:#8a8680;}
+      .arw{stroke:#c7c3ba;stroke-width:1.3;fill:none;marker-end:url(#arrow);}
+      .wlbl{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;font-size:11px;font-weight:700;fill:#fff;}
+    </style>
+
+    <!-- start -->
+    <rect x="136" y="6" width="160" height="30" rx="8" class="box"/>
+    <text x="216" y="25" text-anchor="middle" class="lbl">支出項目</text>
+
+    <line x1="216" y1="36" x2="216" y2="52" class="arw"/>
+
+    <!-- Q1 -->
+    <rect x="106" y="54" width="220" height="38" rx="8" class="box"/>
+    <text x="216" y="70" text-anchor="middle" class="lbl">毎月・毎年など周期的に</text>
+    <text x="216" y="84" text-anchor="middle" class="lbl">発生する？</text>
+
+    <!-- branches -->
+    <line x1="150" y1="92" x2="70" y2="122" class="arw"/>
+    <text x="92" y="108" text-anchor="middle" class="lbl2">はい</text>
+    <line x1="282" y1="92" x2="362" y2="122" class="arw"/>
+    <text x="340" y="108" text-anchor="middle" class="lbl2">いいえ</text>
+
+    <!-- Q2 left (定期) -->
+    <rect x="10" y="124" width="180" height="38" rx="8" class="box"/>
+    <text x="100" y="140" text-anchor="middle" class="lbl">金額はほぼ</text>
+    <text x="100" y="154" text-anchor="middle" class="lbl">一定？（定期）</text>
+
+    <!-- Q2 right (不定期) -->
+    <rect x="242" y="124" width="180" height="38" rx="8" class="box"/>
+    <text x="332" y="140" text-anchor="middle" class="lbl">金額はほぼ</text>
+    <text x="332" y="154" text-anchor="middle" class="lbl">一定？（不定期）</text>
+
+    <!-- leaves -->
+    <line x1="55" y1="162" x2="55" y2="182" class="arw"/>
+    <text x="66" y="176" text-anchor="middle" class="lbl2">はい</text>
+    <line x1="145" y1="162" x2="145" y2="182" class="arw"/>
+    <text x="134" y="176" text-anchor="middle" class="lbl2">いいえ</text>
+    <line x1="287" y1="162" x2="287" y2="182" class="arw"/>
+    <text x="298" y="176" text-anchor="middle" class="lbl2">はい</text>
+    <line x1="377" y1="162" x2="377" y2="182" class="arw"/>
+    <text x="366" y="176" text-anchor="middle" class="lbl2">いいえ</text>
+
+    <rect x="8" y="184" width="94" height="50" rx="8" class="qbox" fill="#4a7c6e" stroke="#4a7c6e"/>
+    <text x="55" y="204" text-anchor="middle" class="wlbl">固定</text>
+    <text x="55" y="220" text-anchor="middle" class="wlbl">×定期</text>
+
+    <rect x="106" y="184" width="94" height="50" rx="8" class="qbox" fill="#c99a3e" stroke="#c99a3e"/>
+    <text x="153" y="204" text-anchor="middle" class="wlbl">変動</text>
+    <text x="153" y="220" text-anchor="middle" class="wlbl">×定期</text>
+
+    <rect x="240" y="184" width="94" height="50" rx="8" class="qbox" fill="#5b7fa0" stroke="#5b7fa0"/>
+    <text x="287" y="204" text-anchor="middle" class="wlbl">固定</text>
+    <text x="287" y="220" text-anchor="middle" class="wlbl">×不定期</text>
+
+    <rect x="338" y="184" width="94" height="50" rx="8" class="qbox" fill="#b5654f" stroke="#b5654f"/>
+    <text x="385" y="204" text-anchor="middle" class="wlbl">変動</text>
+    <text x="385" y="220" text-anchor="middle" class="wlbl">×不定期</text>
+  </svg>`;
+  document.getElementById('flowSvg').innerHTML = svg;
+}
+
+function render(){
+  renderItemList();
+  renderMatrix();
+}
+
+renderFlowSvg();
+render();
+</script>
+</body>
+</html>

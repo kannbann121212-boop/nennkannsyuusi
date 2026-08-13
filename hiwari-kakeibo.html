@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>残高チェック</title>
+<style>
+  :root{
+    --bg:#f5f5f3;
+    --card:#ffffff;
+    --border:#e2e0db;
+    --text:#2b2b28;
+    --sub:#8a8680;
+    --main:#7a6a9c;
+    --main-light:#efeaf5;
+    --income:#4a7c6e;
+    --income-light:#e8f2ef;
+    --expense:#b5654f;
+    --expense-light:#f5eae7;
+    --today:#c99a3e;
+    --today-light:#faf1de;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    max-width:480px;
+    margin:0 auto;
+    padding-bottom:40px;
+  }
+  header{
+    padding:18px 16px 12px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{ font-size:17px; margin:0 0 2px; font-weight:600; }
+  .sub-text{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.6; }
+
+  .app-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .app-nav::-webkit-scrollbar{display:none;}
+  .app-nav a{
+    flex-shrink:0;
+    font-size:11px;
+    padding:6px 10px;
+    border-radius:20px;
+    background:#fafaf8;
+    border:1px solid var(--border);
+    color:var(--sub);
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .app-nav a.active{
+    background:var(--text);
+    color:#fff;
+    border-color:var(--text);
+    font-weight:600;
+  }
+
+  .section{
+    margin:14px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .section.total-section{ border-top:3px solid var(--main); }
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-title .count{ font-size:11px; color:var(--sub); font-weight:400; }
+
+  /* --- 月初残高 --- */
+  .start-balance-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .start-balance-row span{ font-size:12px; color:var(--sub); flex-shrink:0; }
+  .start-balance-row input{
+    flex:1;
+    min-width:0;
+    text-align:right;
+    font-size:15px;
+    font-weight:700;
+    padding:9px 8px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fafaf8;
+    color:var(--text);
+  }
+
+  /* --- 項目カード（入力） --- */
+  .item-card{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    background:#fafaf8;
+  }
+  .item-row-top{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .item-row-top .day-input{
+    width:44px;
+    flex-shrink:0;
+    text-align:center;
+    font-size:12px;
+    padding:7px 4px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top input[type=text]{
+    flex:1.3;
+    min-width:0;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top input[type=number].f-amount{
+    flex:1;
+    min-width:0;
+    text-align:right;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top .del-btn{
+    border:none; background:none; color:var(--sub);
+    font-size:17px; line-height:1; padding:2px 2px; cursor:pointer; flex-shrink:0;
+  }
+  .seg{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .seg button{
+    flex:1;
+    border:none;
+    background:#fff;
+    font-size:11px;
+    padding:7px 0;
+    color:var(--sub);
+    cursor:pointer;
+  }
+  .seg button.active.type-income{ background:var(--income); color:#fff; font-weight:600; }
+  .seg button.active.type-expense{ background:var(--expense); color:#fff; font-weight:600; }
+
+  .add-item-btn{
+    width:100%;
+    margin-top:6px;
+    padding:9px;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    background:none;
+    font-size:13px;
+    color:var(--sub);
+  }
+  .empty-note{
+    font-size:12px; color:var(--sub); text-align:center; padding:14px 4px;
+  }
+
+  /* --- 残高チェック（結果の箇条書き） --- */
+  .status-banner{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:12px;
+    font-size:12px;
+    line-height:1.6;
+  }
+  .status-banner.ok{ background:var(--income-light); color:var(--income); }
+  .status-banner.warn{ background:var(--expense-light); color:var(--expense); }
+  .status-banner strong{ font-weight:700; }
+
+  .balance-list{ list-style:none; margin:0; padding:0; }
+  .balance-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 2px;
+    border-bottom:1px solid #f0efec;
+    font-size:12.5px;
+  }
+  .balance-row:last-child{ border-bottom:none; }
+  .balance-row.is-today{ background:var(--today-light); border-radius:8px; padding-left:6px; padding-right:6px; }
+  .balance-row.is-negative .b-balance{ color:var(--expense); font-weight:700; }
+  .b-day{
+    flex-shrink:0;
+    width:34px;
+    font-weight:700;
+    color:var(--sub);
+  }
+  .b-name{
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:var(--text);
+  }
+  .b-amount{
+    flex-shrink:0;
+    font-weight:600;
+    width:88px;
+    text-align:right;
+  }
+  .b-amount.income{ color:var(--income); }
+  .b-amount.expense{ color:var(--expense); }
+  .b-balance{
+    flex-shrink:0;
+    width:96px;
+    text-align:right;
+    font-weight:700;
+    color:var(--text);
+  }
+  .balance-start-row{
+    display:flex;
+    justify-content:space-between;
+    padding:8px 2px 10px;
+    font-size:12.5px;
+    color:var(--sub);
+    border-bottom:1px dashed var(--border);
+    margin-bottom:2px;
+  }
+  .balance-start-row .val{ font-weight:700; color:var(--text); }
+
+  /* --- サマリー --- */
+  .summary-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .summary-box{
+    background:#fafaf8;
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .summary-box .value{ font-size:16px; font-weight:700; }
+  .summary-box.full{ grid-column:1 / -1; }
+  .balance-plus{ color:var(--income); }
+  .balance-minus{ color:var(--expense); }
+
+  .footer-note{
+    text-align:center; font-size:11px; color:var(--sub);
+    margin:20px 20px 0; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>残高チェック</h1>
+  <div class="sub-text">月初の残高に、1日から31日の収入・支出を日付順に反映して、残高が途中でマイナスにならないか箇条書きで確認できます</div>
+  <nav class="app-nav">
+    <a href="index.html">年間収支計画表</a>
+    <a href="flowchart.html">予算配分フローチャート</a>
+    <a href="tokubetsuhi.html">特別費積立</a>
+    <a href="hiwari-kakeibo.html" class="active">残高チェック</a>
+  </nav>
+</header>
+
+<div class="section">
+  <div class="section-title"><span>月初の残高</span></div>
+  <div class="start-balance-row">
+    <span>月初残高</span>
+    <input type="number" inputmode="numeric" id="startBalanceInput" placeholder="例: 300000">
+    <span>円</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">
+    <span>収入・支出の予定</span>
+    <span class="count" id="itemCount"></span>
+  </div>
+  <div id="itemList"></div>
+  <div class="empty-note" id="emptyNote" style="display:none;">予定がありません。下のボタンから追加してください</div>
+  <button class="add-item-btn" id="addItemBtn">＋ 予定を追加</button>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>残高チェック（1日〜31日）</span></div>
+  <div id="statusBanner"></div>
+  <div class="balance-start-row">
+    <span>月初残高</span>
+    <span class="val" id="balanceStartVal">¥0</span>
+  </div>
+  <ul class="balance-list" id="balanceList"></ul>
+</div>
+
+<div class="section total-section">
+  <div class="section-title"><span>今月の合計</span></div>
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="label">収入合計</div>
+      <div class="value" id="sumIncome">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">支出合計</div>
+      <div class="value" id="sumExpense">¥0</div>
+    </div>
+    <div class="summary-box full">
+      <div class="label">月末残高予測</div>
+      <div class="value" id="sumEndBalance">¥0</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
+
+<script>
+const SELF_KEY = 'zandaka-check-v1';
+
+let state = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(SELF_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.items)){
+        if(parsed.startBalance === undefined) parsed.startBalance = '';
+        return parsed;
+      }
+    }
+  }catch(e){}
+  return { startBalance:'', items: [] };
+}
+
+function saveState(){
+  localStorage.setItem(SELF_KEY, JSON.stringify(state));
+}
+
+function newId(){
+  return 'i' + Date.now() + Math.random().toString(16).slice(2);
+}
+
+function todayDay(){
+  return new Date().getDate();
+}
+
+function yen(n){
+  const sign = n < 0 ? '-' : '';
+  return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
+}
+function yenSigned(n){
+  const sign = n >= 0 ? '+' : '-';
+  return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
+}
+function escapeAttr(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderItemList(){
+  const container = document.getElementById('itemList');
+  container.innerHTML = '';
+  document.getElementById('emptyNote').style.display = state.items.length ? 'none' : 'block';
+  document.getElementById('itemCount').textContent = state.items.length ? state.items.length + '件' : '';
+
+  state.items.forEach((item)=>{
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      <div class="item-row-top">
+        <input type="number" inputmode="numeric" class="day-input" value="${item.day}" min="1" max="31" placeholder="日">
+        <input type="text" class="f-name" value="${escapeAttr(item.name)}" placeholder="予定名" maxlength="14">
+        <input type="number" inputmode="numeric" class="f-amount" value="${item.amount}" placeholder="金額">
+        <button class="del-btn">×</button>
+      </div>
+      <div class="seg">
+        <button data-val="income" class="${item.type==='income'?'active type-income':''}">収入</button>
+        <button data-val="expense" class="${item.type==='expense'?'active type-expense':''}">支出</button>
+      </div>`;
+
+    const dayInput = card.querySelector('.day-input');
+    const nameInput = card.querySelector('.f-name');
+    const amountInput = card.querySelector('.f-amount');
+    const delBtn = card.querySelector('.del-btn');
+    const typeBtns = card.querySelectorAll('.seg button');
+
+    dayInput.addEventListener('input', e=>{
+      const raw = e.target.value;
+      item.day = raw === '' ? '' : raw;
+      saveState(); renderBalanceCheck(); renderTotals();
+    });
+    dayInput.addEventListener('blur', e=>{
+      let v = parseInt(e.target.value) || 1;
+      v = Math.min(31, Math.max(1, v));
+      item.day = v;
+      e.target.value = v;
+      saveState(); renderItemList(); renderBalanceCheck(); renderTotals();
+    });
+    nameInput.addEventListener('input', e=>{ item.name = e.target.value; saveState(); renderBalanceCheck(); });
+    amountInput.addEventListener('input', e=>{ item.amount = e.target.value; saveState(); renderBalanceCheck(); renderTotals(); });
+    delBtn.addEventListener('click', ()=>{
+      const idx = state.items.indexOf(item);
+      if(idx>-1) state.items.splice(idx,1);
+      saveState(); renderAll();
+    });
+    typeBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        item.type = btn.dataset.val;
+        saveState(); renderAll();
+      });
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function renderBalanceCheck(){
+  const start = parseFloat(state.startBalance) || 0;
+  document.getElementById('balanceStartVal').textContent = yen(start);
+
+  const sorted = state.items
+    .filter(it => it.name || parseFloat(it.amount))
+    .slice()
+    .sort((a,b)=> (parseInt(a.day)||0) - (parseInt(b.day)||0));
+
+  let running = start;
+  let minBalance = start;
+  let minDay = null;
+  let firstNegativeDay = null;
+  let firstNegativeAmount = null;
+
+  const rows = sorted.map(item=>{
+    const amt = parseFloat(item.amount) || 0;
+    const delta = item.type === 'income' ? amt : -amt;
+    running += delta;
+    if(running < minBalance){ minBalance = running; minDay = item.day; }
+    if(running < 0 && firstNegativeDay === null){
+      firstNegativeDay = item.day;
+      firstNegativeAmount = running;
+    }
+    return { day:item.day, name:item.name || '（無題）', delta, balanceAfter:running };
+  });
+
+  const t = todayDay();
+  const list = document.getElementById('balanceList');
+  list.innerHTML = rows.map(r=>`
+    <li class="balance-row ${r.balanceAfter<0?'is-negative':''} ${r.day===t?'is-today':''}">
+      <span class="b-day">${r.day}日</span>
+      <span class="b-name">${escapeAttr(r.name)}</span>
+      <span class="b-amount ${r.delta>=0?'income':'expense'}">${yenSigned(r.delta)}</span>
+      <span class="b-balance">${yen(r.balanceAfter)}</span>
+    </li>`).join('');
+
+  const banner = document.getElementById('statusBanner');
+  if(firstNegativeDay !== null){
+    banner.innerHTML = `<div class="status-banner warn">⚠️ <span><strong>${firstNegativeDay}日</strong>に残高が<strong>${yen(firstNegativeAmount)}</strong>となり、マイナスになる見込みです。支出を減らすか、それまでの収入を見直しましょう。</span></div>`;
+  }else if(rows.length){
+    banner.innerHTML = `<div class="status-banner ok">✅ <span>月内で残高がマイナスになる予定はありません。最も少なくなるのは${minDay!==null ? minDay+'日時点で' : ''}<strong>${yen(minBalance)}</strong>です。</span></div>`;
+  }else{
+    banner.innerHTML = '';
+  }
+
+  return { rows, running };
+}
+
+function renderTotals(){
+  let income = 0, expense = 0;
+  state.items.forEach(item=>{
+    const amt = parseFloat(item.amount) || 0;
+    if(item.type === 'income') income += amt;
+    else expense += amt;
+  });
+  const start = parseFloat(state.startBalance) || 0;
+  const endBalance = start + income - expense;
+
+  document.getElementById('sumIncome').textContent = yen(income);
+  document.getElementById('sumExpense').textContent = yen(expense);
+  const endEl = document.getElementById('sumEndBalance');
+  endEl.textContent = yen(endBalance);
+  endEl.className = 'value ' + (endBalance>=0 ? 'balance-plus' : 'balance-minus');
+}
+
+function renderAll(){
+  renderItemList();
+  renderBalanceCheck();
+  renderTotals();
+}
+
+document.getElementById('startBalanceInput').value = state.startBalance;
+document.getElementById('startBalanceInput').addEventListener('input', e=>{
+  state.startBalance = e.target.value;
+  saveState();
+  renderBalanceCheck();
+  renderTotals();
+});
+
+document.getElementById('addItemBtn').addEventListener('click', ()=>{
+  state.items.push({ id:newId(), day:todayDay(), name:'', amount:'', type:'expense' });
+  saveState();
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>

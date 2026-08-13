@@ -64,6 +64,33 @@
     background:var(--card);
     color:var(--text);
   }
+  .app-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .app-nav::-webkit-scrollbar{ display:none; }
+  .app-nav a{
+    flex-shrink:0;
+    font-size:11px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--border);
+    color:var(--sub);
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .app-nav a.active{
+    background:var(--text);
+    border-color:var(--text);
+    color:#fff;
+    font-weight:600;
+  }
 
   .section{
     margin:14px 12px;
@@ -209,6 +236,12 @@
     <span>対象年</span>
     <input type="number" id="yearInput" value="2026">
   </div>
+  <nav class="app-nav">
+    <a href="index.html" class="active">年間収支</a>
+    <a href="flowchart.html">予算配分</a>
+    <a href="tokubetsuhi.html">特別費積立</a>
+    <a href="lifeplan.html">ライフプラン</a>
+  </nav>
 </header>
 
 <div class="section income-section">
