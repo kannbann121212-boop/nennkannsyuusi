@@ -207,7 +207,28 @@
   .quad-box.q4 .quad-title{ color:var(--q4); }
   .quad-total{ font-size:15px; font-weight:700; margin-bottom:4px; }
   .quad-tip{ font-size:10.5px; color:var(--text); opacity:.8; line-height:1.5; margin-bottom:6px; }
-  .quad-items{ font-size:10.5px; color:var(--sub); line-height:1.6; }
+  .quad-items{ font-size:10.5px; color:var(--text); }
+  .quad-item-row{
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+    padding:3px 0;
+    border-top:1px dashed rgba(0,0,0,0.08);
+  }
+  .quad-item-row:first-child{ border-top:none; }
+  .quad-item-row .qi-name{
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .quad-item-row .qi-amount{
+    flex-shrink:0;
+    font-weight:600;
+    color:var(--sub);
+  }
+  .quad-empty{ font-size:10.5px; color:var(--sub); }
 
   .unclassified-note{
     font-size:11px; color:var(--q4); text-align:center; margin-top:10px;
@@ -417,7 +438,7 @@ function quadrantLabel(item){
 
 function renderMatrix(){
   const totals = { q1:0, q2:0, q3:0, q4:0 };
-  const names = { q1:[], q2:[], q3:[], q4:[] };
+  const rows = { q1:[], q2:[], q3:[], q4:[] };
   let unclassified = 0;
 
   state.items.forEach(item=>{
@@ -429,12 +450,15 @@ function renderMatrix(){
     else if(!item.fixed && item.regular) key='q3';
     else key='q4';
     totals[key]+=amt;
-    if(item.name) names[key].push(item.name);
+    if(item.name) rows[key].push({ name:item.name, amount:amt });
   });
 
   ['q1','q2','q3','q4'].forEach(k=>{
     document.getElementById(k+'Total').textContent = yen(totals[k]);
-    document.getElementById(k+'Items').textContent = names[k].length ? names[k].join('・') : '';
+    const wrap = document.getElementById(k+'Items');
+    wrap.innerHTML = rows[k].length
+      ? rows[k].map(r=>`<div class="quad-item-row"><span class="qi-name">${escapeAttr(r.name)}</span><span class="qi-amount">${yen(r.amount)}</span></div>`).join('')
+      : '';
   });
 
   const note = document.getElementById('unclassifiedNote');
