@@ -283,7 +283,7 @@
 
 <header>
   <h1>残高チェック</h1>
-  <div class="sub-text">月初の残高に、1日から31日の収入・支出を日付順に反映して、残高が途中でマイナスにならないか箇条書きで確認できます</div>
+  <div class="sub-text">給料日を基準に、給料日〜次の給料日前日までの収入・支出を日付順に反映して、残高が途中でマイナスにならないか箇条書きで確認できます</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
     <a href="flowchart.html">予算配分</a>
@@ -294,12 +294,18 @@
 </header>
 
 <div class="section">
-  <div class="section-title"><span>月初の残高</span></div>
+  <div class="section-title"><span>給料日と開始残高</span></div>
+  <div class="start-balance-row" style="margin-bottom:8px;">
+    <span>給料日</span>
+    <input type="number" inputmode="numeric" id="paydayInput" placeholder="例: 25" min="1" max="31" style="flex:none; width:80px;">
+    <span>日</span>
+  </div>
   <div class="start-balance-row">
-    <span>月初残高</span>
+    <span>開始残高</span>
     <input type="number" inputmode="numeric" id="startBalanceInput" placeholder="例: 300000">
     <span>円</span>
   </div>
+  <div class="sub-text" id="cycleRangeNote" style="margin-top:6px;"></div>
 </div>
 
 <div class="section">
@@ -313,17 +319,17 @@
 </div>
 
 <div class="section">
-  <div class="section-title"><span>残高チェック（1日〜31日）</span></div>
+  <div class="section-title"><span id="balanceCheckTitle">残高チェック</span></div>
   <div id="statusBanner"></div>
   <div class="balance-start-row">
-    <span>月初残高</span>
+    <span>開始残高</span>
     <span class="val" id="balanceStartVal">¥0</span>
   </div>
   <ul class="balance-list" id="balanceList"></ul>
 </div>
 
 <div class="section total-section">
-  <div class="section-title"><span>今月の合計</span></div>
+  <div class="section-title"><span>このサイクルの合計</span></div>
   <div class="summary-grid">
     <div class="summary-box">
       <div class="label">収入合計</div>
@@ -334,7 +340,7 @@
       <div class="value" id="sumExpense">¥0</div>
     </div>
     <div class="summary-box full">
-      <div class="label">月末残高予測</div>
+      <div class="label">サイクル末残高予測</div>
       <div class="value" id="sumEndBalance">¥0</div>
     </div>
   </div>
@@ -354,11 +360,25 @@ function loadState(){
       const parsed = JSON.parse(raw);
       if(parsed && Array.isArray(parsed.items)){
         if(parsed.startBalance === undefined) parsed.startBalance = '';
+        if(parsed.payday === undefined) parsed.payday = '';
         return parsed;
       }
     }
   }catch(e){}
-  return { startBalance:'', items: [] };
+  return { startBalance:'', payday:'', items: [] };
+}
+
+function paydayValue(){
+  let p = parseInt(state.payday) || 1;
+  if(p < 1) p = 1;
+  if(p > 31) p = 31;
+  return p;
+}
+
+// 給料日を起点にした周期上の並び順キー（給料日=0、その前日=30）
+function cycleOrder(day, payday){
+  const d = parseInt(day) || 1;
+  return d >= payday ? d - payday : d - payday + 31;
 }
 
 function saveState(){
@@ -448,10 +468,15 @@ function renderBalanceCheck(){
   const start = parseFloat(state.startBalance) || 0;
   document.getElementById('balanceStartVal').textContent = yen(start);
 
+  const payday = paydayValue();
+  const endDay = payday === 1 ? 31 : payday - 1;
+  document.getElementById('balanceCheckTitle').textContent = `残高チェック（${payday}日〜${endDay}日）`;
+  document.getElementById('cycleRangeNote').textContent = `${payday}日を「給料日」として、${payday}日〜翌月${endDay}日までを1サイクルとして計算します`;
+
   const sorted = state.items
     .filter(it => it.name || parseFloat(it.amount))
     .slice()
-    .sort((a,b)=> (parseInt(a.day)||0) - (parseInt(b.day)||0));
+    .sort((a,b)=> cycleOrder(a.day, payday) - cycleOrder(b.day, payday));
 
   let running = start;
   let minBalance = start;
@@ -519,6 +544,23 @@ function renderAll(){
 document.getElementById('startBalanceInput').value = state.startBalance;
 document.getElementById('startBalanceInput').addEventListener('input', e=>{
   state.startBalance = e.target.value;
+  saveState();
+  renderBalanceCheck();
+  renderTotals();
+});
+
+document.getElementById('paydayInput').value = state.payday;
+document.getElementById('paydayInput').addEventListener('input', e=>{
+  state.payday = e.target.value;
+  saveState();
+  renderBalanceCheck();
+  renderTotals();
+});
+document.getElementById('paydayInput').addEventListener('blur', e=>{
+  let v = parseInt(e.target.value) || 1;
+  v = Math.min(31, Math.max(1, v));
+  state.payday = v;
+  e.target.value = v;
   saveState();
   renderBalanceCheck();
   renderTotals();
