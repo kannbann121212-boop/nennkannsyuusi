@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#4a7c6e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="年間収支">
+<meta name="apple-mobile-web-app-title" content="家計管理">
 <meta name="mobile-web-app-capable" content="yes">
 <style>
   :root{
@@ -431,6 +431,13 @@ document.getElementById('addExpenseBtn').addEventListener('click', ()=>{
 });
 
 render();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
