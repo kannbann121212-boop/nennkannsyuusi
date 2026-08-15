@@ -196,6 +196,19 @@
   }
 
   /* --- 合計サマリー --- */
+  .summary-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:4px;
+  }
+  .summary-box{
+    background:#fafaf8;
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .summary-box .value{ font-size:19px; font-weight:700; color:var(--main); }
   .total-value{
     font-size:26px;
     font-weight:700;
@@ -237,7 +250,7 @@
 
 <header>
   <h1>特別費積立プランナー</h1>
-  <div class="sub-text">家電の故障など急な出費への備えと、車の買い替えなど数年後の大きな支出を、毎月いくら積み立てればよいか計算します</div>
+  <div class="sub-text">車の買い替え・家電の故障・旅行など、毎月は発生しないけれど年間で見ると大きい「特別費」を項目別に洗い出し、年間でいくら必要か・毎月いくら積み立てればよいかを計算します</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
     <a href="flowchart.html">予算配分</a>
@@ -259,22 +272,32 @@
     <button class="add-item-btn" id="addAnnualBtn">＋ 年間見積もり型</button>
     <button class="add-item-btn" id="addTargetBtn">＋ 目標時期あり型</button>
   </div>
-  <button class="reload-btn" id="reloadBtn">予算配分フローチャートの「不定期」項目を読み込む</button>
 </div>
 
 <div class="section total-section">
-  <div class="section-title"><span>毎月の積立額 合計</span></div>
-  <div class="total-value" id="totalMonthly">¥0</div>
-  <div class="total-caption">この金額を毎月「特別費積立」として先取りしておく目安です</div>
+  <div class="section-title"><span>特別費の合計</span></div>
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="label">年間の特別費 合計</div>
+      <div class="value" id="totalAnnual">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">毎月の積立額 合計</div>
+      <div class="value" id="totalMonthly">¥0</div>
+    </div>
+  </div>
+  <div class="total-caption">毎月「特別費積立」としてこの金額を先取りしておくのが目安です</div>
   <div id="breakdownList"></div>
-  <div class="tip-box">年間収支計画表の支出項目に「特別費積立」として、この合計額×12ヶ月分を登録しておくと年間予算にも反映できます。</div>
+  <button class="reload-btn" id="writeToAnnualBtn">年間収支計画表に「特別費」として書き込む</button>
+  <div class="tip-box" id="writeTip">上のボタンを押すと、年間収支計画表の支出項目に「特別費積立」として毎月の積立額合計が登録されます(すでにある場合は金額を更新します)。</div>
 </div>
 
 <div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
 
 <script>
-const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1'; // 予算配分フローチャート(読み取り専用で参照)
+const SOURCE_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(書き込み先として参照)
 const SELF_KEY = 'tokubetsuhi-tsumitate-v1';
+const WRITE_ITEM_NAME = '特別費積立';
 
 let state = loadState();
 
@@ -297,35 +320,32 @@ function newId(){
   return 'i' + Date.now() + Math.random().toString(16).slice(2);
 }
 
-function loadIrregularFromFlowchart(){
+// 年間収支計画表(index.html)の支出項目に「特別費積立」として金額を書き込む。
+// 同名の項目が既にあれば金額のみ更新し、無ければ新規追加する。
+function writeMonthlyTotalToAnnualBudget(monthlyTotal){
+  let budget;
   try{
-    const raw = localStorage.getItem(FLOWCHART_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      if(parsed && Array.isArray(parsed.items)){
-        return parsed.items.filter(it => it.regular === false && it.name);
-      }
-    }
-  }catch(e){}
-  return [];
-}
+    const raw = localStorage.getItem(SOURCE_KEY);
+    budget = raw ? JSON.parse(raw) : null;
+  }catch(e){ budget = null; }
+  if(!budget || !Array.isArray(budget.income) || !Array.isArray(budget.expense)){
+    budget = { year: new Date().getFullYear(), income: [], expense: [] };
+  }
 
-function seedFromFlowchart(){
-  const source = loadIrregularFromFlowchart();
-  const existingNames = new Set(state.items.map(it=>it.name));
-  let addedCount = 0;
-  source.forEach(it=>{
-    const name = (it.name||'').trim();
-    if(!name || existingNames.has(name)) return;
-    state.items.push({
-      id:newId(), name:name, mode:'annual',
-      annualAmount: it.amount || '',
-      targetAmount:'', years:'', months:'', saved:''
-    });
-    existingNames.add(name);
-    addedCount++;
-  });
-  return addedCount;
+  const amount = Math.round(monthlyTotal);
+  const existing = budget.expense.find(it => (it.name||'').trim() === WRITE_ITEM_NAME);
+  let mode;
+  if(existing){
+    existing.amount = amount;
+    if(!existing.count) existing.count = 12;
+    mode = 'update';
+  }else{
+    budget.expense.push({ name: WRITE_ITEM_NAME, amount: amount, count: 12 });
+    mode = 'add';
+  }
+
+  localStorage.setItem(SOURCE_KEY, JSON.stringify(budget));
+  return { mode, amount };
 }
 
 function yen(n){
@@ -450,6 +470,8 @@ function renderItemList(){
   });
 }
 
+let currentMonthlyTotal = 0;
+
 function renderTotals(){
   let total = 0;
   const rows = [];
@@ -460,7 +482,9 @@ function renderTotals(){
       rows.push({ name:item.name || '（無題）', monthly:r.monthly });
     }
   });
+  currentMonthlyTotal = total;
   document.getElementById('totalMonthly').textContent = yen(total);
+  document.getElementById('totalAnnual').textContent = yen(total*12);
   const list = document.getElementById('breakdownList');
   list.innerHTML = rows.map(r=>`<div class="breakdown-row"><span class="bname">${escapeAttr(r.name)}</span><span class="bval">${yen(r.monthly)}</span></div>`).join('');
 }
@@ -475,13 +499,16 @@ document.getElementById('addTargetBtn').addEventListener('click', ()=>{
   saveState();
   render();
 });
-document.getElementById('reloadBtn').addEventListener('click', ()=>{
-  const added = seedFromFlowchart();
-  saveState();
-  render();
-  if(added === 0){
-    alert('新しく読み込める不定期項目はありませんでした');
+document.getElementById('writeToAnnualBtn').addEventListener('click', ()=>{
+  if(currentMonthlyTotal <= 0){
+    alert('積立額が計算できる項目がありません。先に積立項目を入力してください。');
+    return;
   }
+  const { mode, amount } = writeMonthlyTotalToAnnualBudget(currentMonthlyTotal);
+  const msg = mode === 'update'
+    ? `年間収支計画表の「特別費積立」を ${yen(amount)}/月 に更新しました`
+    : `年間収支計画表に「特別費積立」(${yen(amount)}/月)を追加しました`;
+  alert(msg);
 });
 
 function render(){
