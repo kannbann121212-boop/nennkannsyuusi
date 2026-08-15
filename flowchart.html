@@ -272,7 +272,7 @@
   <div id="itemList"></div>
   <div class="empty-note" id="emptyNote" style="display:none;">項目がありません。下のボタンから追加してください</div>
   <button class="add-item-btn" id="addItemBtn">＋ 項目を追加</button>
-  <button class="reload-btn" id="reloadBtn">年間収支計画表から支出項目を読み込む</button>
+  <button class="reload-btn" id="reloadBtn">年間収支計画表から項目・金額を読み込む</button>
 </div>
 
 <div class="section">
@@ -323,8 +323,9 @@ function loadState(){
     }
   }catch(e){}
   // 初回は年間収支計画表の支出項目から自動で取り込む
-  const seeded = seedFromSource([]);
-  return { items: seeded };
+  const initial = { items: [] };
+  syncItemsFromSource(initial.items);
+  return initial;
 }
 
 function saveState(){
@@ -342,23 +343,37 @@ function loadSourceExpenseList(){
   return [];
 }
 
-function seedFromSource(existingItems){
+// 年間収支計画表の支出項目を items に同期する。
+// 同じ名前の項目が既にあれば金額だけ最新化し、無ければ新規追加する。
+// (分類状態 fixed/regular は既存項目のものを保持する)
+function syncItemsFromSource(items){
   const source = loadSourceExpenseList();
-  const existingNames = new Set(existingItems.map(it=>it.name));
-  const added = [];
+  const byName = new Map(items.map(it=>[it.name, it]));
+  let added = 0, updated = 0;
   source.forEach(it=>{
     const name = (it.name||'').trim();
-    if(!name || existingNames.has(name)) return;
-    added.push({
-      id: 'i' + Date.now() + Math.random().toString(16).slice(2),
-      name: name,
-      amount: it.amount || '',
-      fixed: null,
-      regular: null
-    });
-    existingNames.add(name);
+    if(!name) return;
+    const amt = it.amount || '';
+    if(byName.has(name)){
+      const existing = byName.get(name);
+      if(String(existing.amount) !== String(amt)){
+        existing.amount = amt;
+        updated++;
+      }
+    }else{
+      const newItem = {
+        id: 'i' + Date.now() + Math.random().toString(16).slice(2),
+        name: name,
+        amount: amt,
+        fixed: null,
+        regular: null
+      };
+      items.push(newItem);
+      byName.set(name, newItem);
+      added++;
+    }
   });
-  return existingItems.concat(added);
+  return { added, updated };
 }
 
 function yen(n){
@@ -473,12 +488,16 @@ document.getElementById('addItemBtn').addEventListener('click', ()=>{
 });
 
 document.getElementById('reloadBtn').addEventListener('click', ()=>{
-  const before = state.items.length;
-  state.items = seedFromSource(state.items);
+  const { added, updated } = syncItemsFromSource(state.items);
   saveState();
   render();
-  if(state.items.length === before){
-    alert('新しく追加できる支出項目はありませんでした');
+  if(added === 0 && updated === 0){
+    alert('年間収支計画表との差分はありませんでした');
+  }else{
+    const parts = [];
+    if(added > 0) parts.push(`新規追加 ${added}件`);
+    if(updated > 0) parts.push(`金額を更新 ${updated}件`);
+    alert(parts.join(' / '));
   }
 });
 
