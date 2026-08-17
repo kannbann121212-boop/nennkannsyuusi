@@ -164,7 +164,7 @@
   }
   .reload-btn{
     width:100%;
-    margin-bottom:6px;
+    margin-top:10px;
     padding:8px;
     border:none;
     border-radius:8px;
@@ -174,7 +174,7 @@
     font-weight:600;
   }
   .sync-tip{
-    font-size:11px; color:var(--sub); margin:0 0 14px; line-height:1.6;
+    font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;
   }
 
   /* --- ライフイベント カード --- */
@@ -288,9 +288,6 @@
     <div class="section-title">① 家計の把握</div>
     <div class="section-desc">毎月の手取り収入と支出を入力し、月間の貯蓄額を出します。</div>
 
-    <button class="reload-btn" id="syncAnnualBtn">年間収支計画表から読み込む</button>
-    <div class="sync-tip" id="syncTip">「年間収支計画表」の収入・支出を月額換算して反映します。支出は「予算配分フローチャート」で固定/変動に分類済みなら自動でその欄に振り分けます(未分類の項目はいったん変動費に入ります)。名前が一致する項目は金額を更新、無ければ新規追加します。</div>
-
     <div class="subhead">収入(月額・手取り)</div>
     <div id="incomeList"></div>
     <button class="add-item-btn" data-key="income">＋ 収入を追加</button>
@@ -302,6 +299,9 @@
     <div class="subhead">変動費(月額)</div>
     <div id="variableList"></div>
     <button class="add-item-btn" data-key="variable">＋ 変動費を追加</button>
+
+    <button class="reload-btn" id="reloadAnnualBtn">年間収支計画表・フローチャートから読み込む</button>
+    <div class="sync-tip">年間収支計画表の金額(年間)を12ヶ月で割って月額に変換し、収入・支出として取り込みます。支出項目の固定費/変動費の振り分けは、予算配分フローチャートで分類した内容を使います(フローチャート側で未分類の項目は、ひとまず変動費に入れます。あとで固定費に移動が必要か確認してください)。同じ名前の項目は金額を更新、無ければ新規追加します。</div>
 
     <div class="summary-grid" style="margin-top:14px;">
       <div class="summary-box"><div class="label">月間貯蓄額</div><div class="value" id="monthlySavings">¥0</div></div>
@@ -392,6 +392,8 @@
 
 <script>
 const STORAGE_KEY = 'lifeplan-tsukurikata-v1';
+const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
+const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1'; // 予算配分フローチャート(読み取り専用で参照。固定/変動の分類に使用)
 const STEP_LABELS = ['基本情報','家計','資産棚卸','イベント','予測','リスク','まとめ'];
 let currentStep = 0;
 
@@ -429,9 +431,15 @@ function saveData(){
   }catch(e){ console.error(e); }
 }
 
-const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2';       // 年間収支計画表(読み取り専用で参照)
-const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1';   // 予算配分フローチャート(固定/変動の分類を参照)
+function yen(n){ const sign = n<0 ? '-' : ''; return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP'); }
+function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+function sum(arr){ return arr.reduce((a,b)=>a+(parseFloat(b.amount)||0),0); }
 
+/* ---------- 年間収支計画表・フローチャートからの読み込み ---------- */
+// 年間収支計画表(年間×回数)を12で割って月額に変換し、①家計の把握の収入・固定費・変動費に取り込む。
+// 支出項目の固定/変動の振り分けは、予算配分フローチャートでの分類(fixed)を使う。
+// フローチャート側で未分類(またはフローチャートのデータ自体が無い)場合は、ひとまず変動費に入れる。
+// 同じ名前の項目があれば金額を更新し、無ければ新規追加する。分類が変わった場合は反対側のリストから削除する。
 function loadAnnualBudget(){
   try{
     const raw = localStorage.getItem(ANNUAL_KEY);
@@ -442,8 +450,7 @@ function loadAnnualBudget(){
   }catch(e){}
   return null;
 }
-// name -> true(固定) / false(変動) / undefined(未分類・データなし)
-function loadFlowchartFixedMap(){
+function loadFlowchartClassification(){
   const map = new Map();
   try{
     const raw = localStorage.getItem(FLOWCHART_KEY);
@@ -452,63 +459,70 @@ function loadFlowchartFixedMap(){
       if(parsed && Array.isArray(parsed.items)){
         parsed.items.forEach(it=>{
           const name = (it.name||'').trim();
-          if(name) map.set(name, it.fixed);
+          if(name) map.set(name, it.fixed); // true / false / null
         });
       }
     }
   }catch(e){}
   return map;
 }
-function monthlyEquivalent(item){
-  return ((parseFloat(item.amount)||0) * (parseFloat(item.count)||0)) / 12;
-}
-function upsertByName(list, name, amount){
-  const existing = list.find(it => (it.name||'').trim() === name);
-  if(existing){
-    const changed = Math.round(existing.amount) !== Math.round(amount);
-    existing.amount = Math.round(amount);
-    return changed ? 'updated' : 'same';
-  }else{
-    list.push({ name, amount: Math.round(amount) });
-    return 'added';
-  }
+function monthlyAmountFromAnnualItem(it){
+  return Math.round(((parseFloat(it.amount)||0) * (parseFloat(it.count)||0)) / 12);
 }
 function removeByName(list, name){
-  const idx = list.findIndex(it => (it.name||'').trim() === name);
+  const idx = list.findIndex(x=>(x.name||'').trim()===name);
   if(idx>-1) list.splice(idx,1);
 }
-// 年間収支計画表の収入・支出を月額換算して data.income/fixed/variable に反映する。
-// 支出は予算配分フローチャートの分類(固定/変動)を見て振り分け先を決める(未分類は変動費)。
-function syncFromAnnualBudget(){
-  const annual = loadAnnualBudget();
-  if(!annual) return { ok:false };
-  const fixedMap = loadFlowchartFixedMap();
-  let added = 0, updated = 0;
+function syncStep1FromAnnualBudget(){
+  const budget = loadAnnualBudget();
+  if(!budget) return { ok:false };
+  const flowMap = loadFlowchartClassification();
 
-  annual.income.forEach(it=>{
+  let added=0, updated=0, unclassified=0;
+
+  function upsertSimple(list, name, amount){
+    const existing = list.find(x=>(x.name||'').trim()===name);
+    if(existing){
+      if((parseFloat(existing.amount)||0) !== amount){ existing.amount = amount; updated++; }
+    }else{
+      list.push({ name, amount });
+      added++;
+    }
+  }
+  function upsertCategorized(targetList, otherList, name, amount){
+    removeByName(otherList, name);
+    const existing = targetList.find(x=>(x.name||'').trim()===name);
+    if(existing){
+      if((parseFloat(existing.amount)||0) !== amount){ existing.amount = amount; updated++; }
+    }else{
+      targetList.push({ name, amount });
+      added++;
+    }
+  }
+
+  budget.income.forEach(it=>{
     const name = (it.name||'').trim();
     if(!name) return;
-    const r = upsertByName(data.income, name, monthlyEquivalent(it));
-    if(r==='added') added++; else if(r==='updated') updated++;
+    upsertSimple(data.income, name, monthlyAmountFromAnnualItem(it));
   });
 
-  annual.expense.forEach(it=>{
+  budget.expense.forEach(it=>{
     const name = (it.name||'').trim();
     if(!name) return;
-    const isFixed = fixedMap.get(name) === true; // true以外(false/undefined/null)は変動費扱い
-    const targetList = isFixed ? data.fixed : data.variable;
-    const otherList = isFixed ? data.variable : data.fixed;
-    removeByName(otherList, name); // 分類が変わっていれば移動させる
-    const r = upsertByName(targetList, name, monthlyEquivalent(it));
-    if(r==='added') added++; else if(r==='updated') updated++;
+    const amount = monthlyAmountFromAnnualItem(it);
+    const fixedFlag = flowMap.has(name) ? flowMap.get(name) : null;
+    if(fixedFlag === null || fixedFlag === undefined){
+      unclassified++;
+      upsertCategorized(data.variable, data.fixed, name, amount);
+    }else if(fixedFlag === true){
+      upsertCategorized(data.fixed, data.variable, name, amount);
+    }else{
+      upsertCategorized(data.variable, data.fixed, name, amount);
+    }
   });
 
-  return { ok:true, added, updated };
+  return { ok:true, added, updated, unclassified };
 }
-
-function yen(n){ const sign = n<0 ? '-' : ''; return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP'); }
-function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
-function sum(arr){ return arr.reduce((a,b)=>a+(parseFloat(b.amount)||0),0); }
 
 /* ---------- 項目リスト(収入/固定費/変動費/資産/負債共通) ---------- */
 function renderItemList(containerId, key){
@@ -570,27 +584,6 @@ document.getElementById('addEventBtn').addEventListener('click', ()=>{
   data.events.push({yearOffset:1, name:'', amount:0});
   saveData();
   renderEvents();
-});
-
-document.getElementById('syncAnnualBtn').addEventListener('click', ()=>{
-  const result = syncFromAnnualBudget();
-  if(!result.ok){
-    alert('年間収支計画表のデータが見つかりませんでした。先に年間収支計画表で収入・支出を入力してください。');
-    return;
-  }
-  saveData();
-  renderItemList('incomeList','income');
-  renderItemList('fixedList','fixed');
-  renderItemList('variableList','variable');
-  recalcAll();
-  if(result.added === 0 && result.updated === 0){
-    alert('年間収支計画表との差分はありませんでした');
-  }else{
-    const parts = [];
-    if(result.added > 0) parts.push(`新規追加 ${result.added}件`);
-    if(result.updated > 0) parts.push(`金額を更新 ${result.updated}件`);
-    alert('年間収支計画表から反映しました：' + parts.join(' / '));
-  }
 });
 
 /* ---------- 計算 ---------- */
@@ -724,6 +717,29 @@ function go(delta){
 }
 document.getElementById('btnBack').addEventListener('click', ()=>go(-1));
 document.getElementById('btnNext').addEventListener('click', ()=>go(1));
+
+document.getElementById('reloadAnnualBtn').addEventListener('click', ()=>{
+  const result = syncStep1FromAnnualBudget();
+  if(!result.ok){
+    alert('年間収支計画表のデータが見つかりませんでした。先に年間収支計画表で収入・支出を入力してください。');
+    return;
+  }
+  saveData();
+  renderItemList('incomeList','income');
+  renderItemList('fixedList','fixed');
+  renderItemList('variableList','variable');
+  recalcAll();
+  if(result.added === 0 && result.updated === 0){
+    alert('年間収支計画表との差分はありませんでした');
+  }else{
+    const parts = [];
+    if(result.added > 0) parts.push(`新規追加 ${result.added}件`);
+    if(result.updated > 0) parts.push(`金額を更新 ${result.updated}件`);
+    let msg = parts.join(' / ');
+    if(result.unclassified > 0) msg += `\n(うち${result.unclassified}件はフローチャートで未分類のため、ひとまず変動費に入れました。固定費に移動が必要か確認してください)`;
+    alert(msg);
+  }
+});
 
 document.getElementById('resetBtn').addEventListener('click', ()=>{
   if(!confirm('入力したデータをすべて削除します。よろしいですか？')) return;
