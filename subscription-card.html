@@ -221,6 +221,20 @@
   .empty-note{
     font-size:12px; color:var(--sub); text-align:center; padding:14px 4px;
   }
+  .reload-btn{
+    width:100%;
+    margin-top:10px;
+    padding:8px;
+    border:none;
+    border-radius:8px;
+    background:var(--main-light);
+    color:var(--main);
+    font-size:12px;
+    font-weight:600;
+  }
+  .sync-tip{
+    font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;
+  }
 
   /* --- 近日中の支払い予定 --- */
   .upcoming-row{
@@ -322,12 +336,16 @@
     <div class="summary-box"><div class="label">年間合計</div><div class="value" id="sumYearly">¥0</div></div>
     <div class="summary-box full"><div class="label">登録件数</div><div class="value" id="sumCount">0件</div></div>
   </div>
+  <button class="reload-btn" id="writeToAnnualBtn">年間収支計画表に「サブスク費」として書き込む</button>
+  <div class="sync-tip">上のボタンを押すと、年間収支計画表の支出項目に「サブスク費」として月間合計金額(×12回)が登録されます(すでにある場合は金額を更新します)。</div>
 </div>
 
 <div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
 
 <script>
 const SELF_KEY = 'subscription-card-v1';
+const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(書き込み先として参照)
+const WRITE_ITEM_NAME = 'サブスク費';
 
 let state = loadState();
 
@@ -434,8 +452,10 @@ function renderCardList(){
     const nameInput = row.querySelector('input[type=text]');
     const payInput = row.querySelector('input[type=number]');
     const delBtn = row.querySelector('.del-btn');
-    nameInput.addEventListener('input', e=>{ c.name = e.target.value; saveState(); renderAll(); });
+    nameInput.addEventListener('input', e=>{ c.name = e.target.value; saveState(); });
+    nameInput.addEventListener('blur', ()=>{ renderItemList(); renderUpcoming(); renderTotals(); });
     payInput.addEventListener('input', e=>{ c.payDay = e.target.value; saveState(); });
+    payInput.addEventListener('blur', ()=>{ renderTotals(); });
     delBtn.addEventListener('click', ()=>{
       state.cards.splice(idx,1);
       state.items.forEach(it=>{ if(it.cardId === c.id) it.cardId = ''; });
@@ -569,7 +589,37 @@ function renderUpcoming(){
     </div>`).join('');
 }
 
+// 年間収支計画表(index.html)の支出項目に「サブスク費」として金額を書き込む。
+// 同名の項目が既にあれば金額のみ更新し、無ければ新規追加する。
+function writeMonthlyTotalToAnnualBudget(monthlyTotal){
+  let budget;
+  try{
+    const raw = localStorage.getItem(ANNUAL_KEY);
+    budget = raw ? JSON.parse(raw) : null;
+  }catch(e){ budget = null; }
+  if(!budget || !Array.isArray(budget.income) || !Array.isArray(budget.expense)){
+    budget = { year: new Date().getFullYear(), income: [], expense: [] };
+  }
+
+  const amount = Math.round(monthlyTotal);
+  const existing = budget.expense.find(it => (it.name||'').trim() === WRITE_ITEM_NAME);
+  let mode;
+  if(existing){
+    existing.amount = amount;
+    if(!existing.count) existing.count = 12;
+    mode = 'update';
+  }else{
+    budget.expense.push({ name: WRITE_ITEM_NAME, amount: amount, count: 12 });
+    mode = 'add';
+  }
+
+  localStorage.setItem(ANNUAL_KEY, JSON.stringify(budget));
+  return { mode, amount };
+}
+
 /* ---------- カード別内訳・サマリー ---------- */
+let currentMonthlyTotal = 0;
+
 function renderTotals(){
   const grouped = {};
   let monthlyTotal = 0, yearlyTotal = 0;
@@ -601,7 +651,21 @@ function renderTotals(){
   document.getElementById('sumMonthly').textContent = yen(monthlyTotal);
   document.getElementById('sumYearly').textContent = yen(yearlyTotal);
   document.getElementById('sumCount').textContent = state.items.length + '件';
+
+  currentMonthlyTotal = monthlyTotal;
 }
+
+document.getElementById('writeToAnnualBtn').addEventListener('click', ()=>{
+  if(currentMonthlyTotal <= 0){
+    alert('書き込める金額がありません。先にサブスクを入力してください。');
+    return;
+  }
+  const { mode, amount } = writeMonthlyTotalToAnnualBudget(currentMonthlyTotal);
+  const msg = mode === 'update'
+    ? `年間収支計画表の「サブスク費」を ${yen(amount)}/月 に更新しました`
+    : `年間収支計画表に「サブスク費」(${yen(amount)}/月)を追加しました`;
+  alert(msg);
+});
 
 function renderAll(){
   renderCardList();
