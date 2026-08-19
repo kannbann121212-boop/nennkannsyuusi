@@ -310,10 +310,11 @@
   <div class="sub-text">家計把握 → 資産棚卸 → ライフイベント → 将来シミュレーション → リスク確認、の順に進めます</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
-    <a href="flowchart.html">支出を整理する</a>
+    <a href="tokubetsuhi.html">特別費の積立</a>
     <a href="subscription-card.html">サブスク管理</a>
     <a href="hiwari-kakeibo.html">残高チェック</a>
     <a href="lifeplan.html" class="active">ライフプラン</a>
+    <a href="kazoku-nenpyo.html">家族年表</a>
   </nav>
 </header>
 
@@ -350,8 +351,8 @@
     <div id="variableList"></div>
     <button class="add-item-btn" data-key="variable">＋ 変動費を追加</button>
 
-    <button class="reload-btn" id="reloadAnnualBtn">年間収支計画表・フローチャートから読み込む</button>
-    <div class="sync-tip">年間収支計画表の金額(年間)を12ヶ月で割って月額に変換し、収入・支出として取り込みます。支出項目の固定費/変動費の振り分けは、予算配分フローチャートで分類した内容を使います(フローチャート側で未分類の項目は、ひとまず変動費に入れます。あとで固定費に移動が必要か確認してください)。同じ名前の項目は金額を更新、無ければ新規追加します。</div>
+    <button class="reload-btn" id="reloadAnnualBtn">年間収支計画表から読み込む</button>
+    <div class="sync-tip">年間収支計画表の金額(年間)を12ヶ月で割って月額に変換し、収入・支出として取り込みます。支出項目はひとまず変動費に入れるので、固定費に該当するものは手動で移動してください。同じ名前の項目は金額を更新、無ければ新規追加します。</div>
 
     <div class="summary-grid" style="margin-top:14px;">
       <div class="summary-box"><div class="label">月間貯蓄額</div><div class="value" id="monthlySavings">¥0</div></div>
@@ -401,6 +402,7 @@
       <div class="table-wrap"><table class="nenpyo" id="nenpyoTable"></table></div>
       <div class="nenpyo-legend">オレンジ色の行は今年です／年齢は現在の年齢とシミュレーション年数をもとに計算しています</div>
     </div>
+    <div class="nenpyo-legend"><a href="kazoku-nenpyo.html" style="color:var(--main); font-weight:600;">家族年表だけを単体ページで開く →</a></div>
   </div>
 </div>
 
@@ -455,7 +457,7 @@
 <script>
 const STORAGE_KEY = 'lifeplan-tsukurikata-v1';
 const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
-const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1'; // 予算配分フローチャート(読み取り専用で参照。固定/変動の分類に使用)
+const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1'; // 旧・支出を整理する(廃止済み。過去の分類データが残っていれば読み取り専用で参照)
 const OLD_KAZOKU_NENPYO_KEY = 'kazoku-nenpyo-v1'; // 旧・家族年表(統合元、読み取り専用で1回だけ引き継ぐ)
 const STEP_LABELS = ['基本情報','家計','資産棚卸','イベント','予測','リスク','まとめ'];
 let currentStep = 0;
@@ -605,10 +607,10 @@ function yen(n){ const sign = n<0 ? '-' : ''; return sign + '¥' + Math.round(Ma
 function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 function sum(arr){ return arr.reduce((a,b)=>a+(parseFloat(b.amount)||0),0); }
 
-/* ---------- 年間収支計画表・フローチャートからの読み込み ---------- */
+/* ---------- 年間収支計画表からの読み込み ---------- */
 // 年間収支計画表(年間×回数)を12で割って月額に変換し、①家計の把握の収入・固定費・変動費に取り込む。
-// 支出項目の固定/変動の振り分けは、予算配分フローチャートでの分類(fixed)を使う。
-// フローチャート側で未分類(またはフローチャートのデータ自体が無い)場合は、ひとまず変動費に入れる。
+// 支出項目は、過去に「支出を整理する」等で固定/変動の分類データが残っていればそれを使い、
+// 無ければ(通常はこちら)ひとまず変動費に入れる。固定費への移動は手動で行う。
 // 同じ名前の項目があれば金額を更新し、無ければ新規追加する。分類が変わった場合は反対側のリストから削除する。
 function loadAnnualBudget(){
   try{
@@ -907,7 +909,7 @@ document.getElementById('reloadAnnualBtn').addEventListener('click', ()=>{
     if(result.added > 0) parts.push(`新規追加 ${result.added}件`);
     if(result.updated > 0) parts.push(`金額を更新 ${result.updated}件`);
     let msg = parts.join(' / ');
-    if(result.unclassified > 0) msg += `\n(うち${result.unclassified}件はフローチャートで未分類のため、ひとまず変動費に入れました。固定費に移動が必要か確認してください)`;
+    if(result.unclassified > 0) msg += `\n(うち${result.unclassified}件は分類データが無いため、ひとまず変動費に入れました。固定費に該当するものは手動で移動してください)`;
     alert(msg);
   }
 });
