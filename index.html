@@ -23,6 +23,8 @@
     --income-light:#e8f2ef;
     --expense:#b5654f;
     --expense-light:#f5eae7;
+    --saving:#6b4fa0;
+    --saving-light:#efe9f7;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -101,6 +103,7 @@
   }
   .section.income-section{border-top:3px solid var(--income);}
   .section.expense-section{border-top:3px solid var(--expense);}
+  .section.saving-section{border-top:3px solid var(--saving);}
 
   .section-title{
     font-size:14px;
@@ -112,6 +115,7 @@
   }
   .income-section .section-title{color:var(--income);}
   .expense-section .section-title{color:var(--expense);}
+  .saving-section .section-title{color:var(--saving);}
   .section-total{
     font-size:14px;
     font-weight:700;
@@ -185,6 +189,7 @@
   }
   .income-section .add-item-btn{color:var(--income); border-color:var(--income);}
   .expense-section .add-item-btn{color:var(--expense); border-color:var(--expense);}
+  .saving-section .add-item-btn{color:var(--saving); border-color:var(--saving);}
 
   /* 年間サマリー */
   .summary-grid{
@@ -263,6 +268,15 @@
   <button class="add-item-btn" id="addExpenseBtn">＋ 支出項目を追加</button>
 </div>
 
+<div class="section saving-section">
+  <div class="section-title">
+    <span>貯蓄・投資</span>
+    <span class="section-total" id="savingTotal">¥0</span>
+  </div>
+  <div id="savingList"></div>
+  <button class="add-item-btn" id="addSavingBtn">＋ 貯蓄・投資項目を追加</button>
+</div>
+
 <div class="section">
   <div class="section-title"><span>年間サマリー</span></div>
   <div class="summary-grid">
@@ -274,8 +288,16 @@
       <div class="label">支出合計</div>
       <div class="value" id="sumExpense">¥0</div>
     </div>
+    <div class="summary-box">
+      <div class="label">貯蓄・投資合計</div>
+      <div class="value" id="sumSaving">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">貯蓄率</div>
+      <div class="value" id="sumSavingRate">0%</div>
+    </div>
     <div class="summary-box full">
-      <div class="label">年間差引(予算)</div>
+      <div class="label">年間差引(貯蓄・投資後)</div>
       <div class="value" id="sumBalance">¥0</div>
     </div>
   </div>
@@ -297,6 +319,8 @@ function loadState(){
       if(parsed && parsed.income && parsed.expense){
         parsed.income.forEach(it=>{ if(it.count===undefined) it.count=1; });
         parsed.expense.forEach(it=>{ if(it.count===undefined) it.count=1; });
+        if(!Array.isArray(parsed.saving)) parsed.saving = [];
+        parsed.saving.forEach(it=>{ if(it.count===undefined) it.count=1; });
         return parsed;
       }
     }
@@ -310,6 +334,10 @@ function loadState(){
       { name:'家賃', amount:'', count:12 },
       { name:'食費', amount:'', count:12 },
       { name:'光熱費', amount:'', count:12 }
+    ],
+    saving: [
+      { name:'貯蓄', amount:'', count:12 },
+      { name:'投資(NISA/iDeCoなど)', amount:'', count:12 }
     ]
   };
 }
@@ -386,12 +414,18 @@ function renderList(containerId, list, colorClass){
 function updateTotals(){
   const incomeTotal = sumList(state.income);
   const expenseTotal = sumList(state.expense);
-  const balance = incomeTotal - expenseTotal;
+  const savingTotal = sumList(state.saving);
+  const balance = incomeTotal - expenseTotal - savingTotal;
 
   document.getElementById('incomeTotal').textContent = yen(incomeTotal);
   document.getElementById('expenseTotal').textContent = yen(expenseTotal);
+  document.getElementById('savingTotal').textContent = yen(savingTotal);
   document.getElementById('sumIncome').textContent = yen(incomeTotal);
   document.getElementById('sumExpense').textContent = yen(expenseTotal);
+  document.getElementById('sumSaving').textContent = yen(savingTotal);
+
+  const rate = incomeTotal > 0 ? (savingTotal / incomeTotal * 100) : 0;
+  document.getElementById('sumSavingRate').textContent = (incomeTotal>0 ? rate.toFixed(1) : '0') + '%';
 
   const balEl = document.getElementById('sumBalance');
   balEl.textContent = yen(balance);
@@ -411,6 +445,7 @@ function render(){
   document.getElementById('yearInput').value = state.year;
   renderList('incomeList', state.income);
   renderList('expenseList', state.expense);
+  renderList('savingList', state.saving);
   updateTotals();
 }
 
@@ -426,6 +461,11 @@ document.getElementById('addIncomeBtn').addEventListener('click', ()=>{
 });
 document.getElementById('addExpenseBtn').addEventListener('click', ()=>{
   state.expense.push({ name:'', amount:'', count:12 });
+  saveState();
+  render();
+});
+document.getElementById('addSavingBtn').addEventListener('click', ()=>{
+  state.saving.push({ name:'', amount:'', count:12 });
   saveState();
   render();
 });
