@@ -229,6 +229,58 @@
 
   .todo-list{ margin:0; padding-left:18px; font-size:12.5px; line-height:2; color:var(--text); }
 
+  .item-row .unit-label{ font-size:11px; color:var(--sub); flex-shrink:0; }
+
+  .nenpyo-toggle-btn{
+    width:100%;
+    margin-top:10px;
+    padding:9px;
+    border:1px solid var(--main);
+    border-radius:8px;
+    background:none;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--main);
+  }
+  .nenpyo-wrap{ display:none; margin-top:12px; }
+  .nenpyo-wrap.show{ display:block; }
+  .table-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    margin:0 -14px;
+    padding:0 14px;
+  }
+  table.nenpyo{
+    border-collapse:collapse;
+    width:100%;
+    min-width:100%;
+    font-size:11.5px;
+  }
+  table.nenpyo th, table.nenpyo td{
+    padding:7px 6px;
+    text-align:center;
+    white-space:nowrap;
+    border-bottom:1px solid #f0efec;
+  }
+  table.nenpyo th{
+    font-size:10.5px;
+    color:var(--sub);
+    font-weight:600;
+    border-bottom:1px solid var(--border);
+    position:sticky;
+    top:0;
+    background:var(--card);
+  }
+  table.nenpyo td.col-year{ font-weight:700; color:var(--text); text-align:left; }
+  table.nenpyo th.col-year{ text-align:left; }
+  table.nenpyo td.col-event{
+    text-align:left; white-space:normal; color:var(--main); font-weight:600; min-width:110px;
+  }
+  table.nenpyo th.col-event{ text-align:left; }
+  table.nenpyo tr.is-current td{ background:var(--warn-light); }
+  table.nenpyo tr.is-current td.col-year{ color:var(--warn); }
+  .nenpyo-legend{ font-size:11px; color:var(--sub); text-align:center; margin-top:8px; line-height:1.7; }
+
   .navbar{
     position:fixed; bottom:0; left:0; right:0;
     max-width:480px; margin:0 auto;
@@ -258,12 +310,10 @@
   <div class="sub-text">家計把握 → 資産棚卸 → ライフイベント → 将来シミュレーション → リスク確認、の順に進めます</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
-    <a href="flowchart.html">予算配分</a>
-    <a href="tokubetsuhi.html">特別費積立</a>
-    <a href="hiwari-kakeibo.html">残高チェック</a>
+    <a href="flowchart.html">支出を整理する</a>
     <a href="subscription-card.html">サブスク管理</a>
+    <a href="hiwari-kakeibo.html">残高チェック</a>
     <a href="lifeplan.html" class="active">ライフプラン</a>
-    <a href="kazoku-nenpyo.html">家族年表</a>
   </nav>
 </header>
 
@@ -335,10 +385,22 @@
 <!-- STEP 3: ライフイベント -->
 <div class="panel" data-step="3">
   <div class="section main-section">
+    <div class="section-title">③ 家族メンバー</div>
+    <div class="section-desc">名前と「現在の年齢」を入力してください(夫婦+子供1〜2人が目安です)。下の年表に年齢の推移が表示されます。</div>
+    <div id="membersList"></div>
+    <button class="add-item-btn" id="addMemberBtn">＋ 家族メンバーを追加</button>
+  </div>
+
+  <div class="section main-section">
     <div class="section-title">③ ライフイベント表</div>
     <div class="section-desc">住宅取得、出産、車の買い替えなど、今後予定している大きな出費・収入を追加してください。支出はマイナス(例: -3000000)、収入や退職金などのプラスの入りはそのままの金額で入力します。</div>
     <div id="eventsList"></div>
     <button class="add-item-btn" id="addEventBtn">＋ イベントを追加</button>
+    <button class="nenpyo-toggle-btn" id="nenpyoToggleBtn">年表を表示</button>
+    <div class="nenpyo-wrap" id="nenpyoWrap">
+      <div class="table-wrap"><table class="nenpyo" id="nenpyoTable"></table></div>
+      <div class="nenpyo-legend">オレンジ色の行は今年です／年齢は現在の年齢とシミュレーション年数をもとに計算しています</div>
+    </div>
   </div>
 </div>
 
@@ -394,8 +456,10 @@
 const STORAGE_KEY = 'lifeplan-tsukurikata-v1';
 const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
 const FLOWCHART_KEY = 'yosan-kumitate-flowchart-v1'; // 予算配分フローチャート(読み取り専用で参照。固定/変動の分類に使用)
+const OLD_KAZOKU_NENPYO_KEY = 'kazoku-nenpyo-v1'; // 旧・家族年表(統合元、読み取り専用で1回だけ引き継ぐ)
 const STEP_LABELS = ['基本情報','家計','資産棚卸','イベント','予測','リスク','まとめ'];
 let currentStep = 0;
+let nenpyoShown = false;
 
 const defaultData = {
   householdName: '',
@@ -406,9 +470,11 @@ const defaultData = {
   variable: [{name:'食費', amount:0},{name:'日用品', amount:0},{name:'交際費・娯楽', amount:0}],
   assets: [{name:'現金・預金', amount:0},{name:'投資(NISA/iDeCoなど)', amount:0}],
   liabilities: [{name:'住宅ローン残高', amount:0}],
+  familyMembers: [{name:'自分', age:''}],
   events: [{yearOffset:5, name:'住宅取得の頭金', amount:-3000000}],
   insurance: {life:false, medical:false, income:false, emergency:false},
   insMemo: '',
+  migratedKazokuNenpyo: false,
   currentStep: 0,
 };
 
@@ -430,6 +496,110 @@ function saveData(){
     window._t = setTimeout(()=>ind.classList.remove('show'), 1000);
   }catch(e){ console.error(e); }
 }
+
+// 旧・家族年表(kazoku-nenpyo.html)のデータが残っていれば、1回だけこちらに引き継ぐ。
+// メンバーは未設定の場合のみ取り込み、イベントは名前が一致すれば更新、無ければ追加する。
+function migrateFromOldKazokuNenpyo(){
+  if(data.migratedKazokuNenpyo) return;
+  try{
+    const raw = localStorage.getItem(OLD_KAZOKU_NENPYO_KEY);
+    if(raw){
+      const old = JSON.parse(raw);
+      if(old && Array.isArray(old.members) && old.members.length){
+        const hasRealMember = data.familyMembers.some(m=>(m.name||'').trim() && (m.name||'').trim()!=='自分');
+        if(!hasRealMember){
+          data.familyMembers = old.members.map(m=>({ name:m.name||'', age:m.age===undefined?'':m.age }));
+        }
+      }
+      if(old && Array.isArray(old.events)){
+        const byName = new Map(data.events.map(ev=>[(ev.name||'').trim(), ev]));
+        old.events.forEach(ev=>{
+          const name = (ev.name||'').trim();
+          if(!name) return;
+          const yearOffset = parseInt(ev.yearOffset)||0;
+          const amount = ev.amount===undefined || ev.amount==='' ? 0 : (parseFloat(ev.amount)||0);
+          if(byName.has(name)){
+            const existing = byName.get(name);
+            existing.yearOffset = yearOffset;
+            existing.amount = amount;
+          }else{
+            const newEvent = { yearOffset, name, amount };
+            data.events.push(newEvent);
+            byName.set(name, newEvent);
+          }
+        });
+      }
+    }
+  }catch(e){}
+  data.migratedKazokuNenpyo = true;
+  saveData();
+}
+
+/* ---------- 家族メンバー ---------- */
+function renderMembers(){
+  const container = document.getElementById('membersList');
+  container.innerHTML = '';
+  data.familyMembers.forEach((m, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="text" value="${escapeAttr(m.name)}" placeholder="名前(例: 自分・配偶者・長男)" maxlength="12">
+      <input type="number" inputmode="numeric" value="${m.age}" placeholder="年齢">
+      <span class="unit-label">歳</span>
+      <button class="del-btn">×</button>`;
+    const nameInput = row.querySelector('input[type=text]');
+    const ageInput = row.querySelector('input[type=number]');
+    const delBtn = row.querySelector('.del-btn');
+    nameInput.addEventListener('input', e=>{ m.name = e.target.value; saveData(); renderNenpyoTable(); });
+    ageInput.addEventListener('input', e=>{ m.age = e.target.value; saveData(); renderNenpyoTable(); });
+    delBtn.addEventListener('click', ()=>{ data.familyMembers.splice(idx,1); saveData(); renderMembers(); renderNenpyoTable(); });
+    container.appendChild(row);
+  });
+}
+document.getElementById('addMemberBtn').addEventListener('click', ()=>{
+  data.familyMembers.push({name:'', age:''});
+  saveData();
+  renderMembers();
+  renderNenpyoTable();
+});
+
+/* ---------- 家族年表(年齢×イベント) ---------- */
+function renderNenpyoTable(){
+  const table = document.getElementById('nenpyoTable');
+  if(!table) return;
+  const baseYear = new Date().getFullYear();
+  const years = Math.max(1, Math.min(60, parseInt(data.simYears) || 30));
+
+  let thead = '<thead><tr><th class="col-year">年</th>';
+  data.familyMembers.forEach(m=>{
+    thead += `<th>${escapeAttr(m.name || '（無題）')}</th>`;
+  });
+  thead += '<th class="col-event">できごと</th></tr></thead>';
+
+  let tbody = '<tbody>';
+  for(let offset=0; offset<years; offset++){
+    const year = baseYear + offset;
+    const isCurrent = offset === 0;
+    const eventsThisYear = data.events.filter(ev => (parseInt(ev.yearOffset)||0) === offset && ev.name);
+
+    tbody += `<tr class="${isCurrent?'is-current':''}">`;
+    tbody += `<td class="col-year">${year}年${isCurrent?'(今年)':''}</td>`;
+    data.familyMembers.forEach(m=>{
+      const age = m.age === '' || m.age === undefined ? '' : (parseInt(m.age)||0) + offset;
+      tbody += `<td>${age === '' ? '－' : age + '歳'}</td>`;
+    });
+    tbody += `<td class="col-event">${eventsThisYear.map(ev=>escapeAttr(ev.name)).join('、') || ''}</td>`;
+    tbody += '</tr>';
+  }
+  tbody += '</tbody>';
+  table.innerHTML = thead + tbody;
+}
+document.getElementById('nenpyoToggleBtn').addEventListener('click', ()=>{
+  nenpyoShown = !nenpyoShown;
+  document.getElementById('nenpyoWrap').classList.toggle('show', nenpyoShown);
+  document.getElementById('nenpyoToggleBtn').textContent = nenpyoShown ? '年表を閉じる' : '年表を表示';
+  if(nenpyoShown) renderNenpyoTable();
+});
 
 function yen(n){ const sign = n<0 ? '-' : ''; return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP'); }
 function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
@@ -588,6 +758,7 @@ document.getElementById('addEventBtn').addEventListener('click', ()=>{
 
 /* ---------- 計算 ---------- */
 function recalcAll(){
+  renderNenpyoTable();
   const incomeTotal = sum(data.income);
   const fixedTotal = sum(data.fixed);
   const variableTotal = sum(data.variable);
@@ -749,6 +920,8 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
 });
 
 function init(){
+  migrateFromOldKazokuNenpyo();
+
   document.getElementById('householdName').value = data.householdName;
   document.getElementById('titleName').textContent = data.householdName ? (data.householdName + 'のライフプラン') : 'ライフプラン作成ツール';
   document.getElementById('currentAge').value = data.currentAge || '';
@@ -759,6 +932,7 @@ function init(){
   renderItemList('variableList','variable');
   renderItemList('assetsList','assets');
   renderItemList('liabilitiesList','liabilities');
+  renderMembers();
   renderEvents();
 
   document.getElementById('ins_life').checked = !!data.insurance.life;

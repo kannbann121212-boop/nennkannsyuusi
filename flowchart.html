@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>予算の組み方フローチャート</title>
+<title>支出を整理する</title>
 <style>
   :root{
     --bg:#f5f5f3;
@@ -11,14 +11,16 @@
     --border:#e2e0db;
     --text:#2b2b28;
     --sub:#8a8680;
-    --q1:#4a7c6e;      /* 固定×定期 */
+    --q1:#4a7c6e;      /* 固定×毎月 */
     --q1-light:#e8f2ef;
     --q2:#5b7fa0;      /* 固定×不定期 */
     --q2-light:#e9eff5;
-    --q3:#c99a3e;      /* 変動×定期 */
+    --q3:#c99a3e;      /* 変動×毎月 */
     --q3-light:#faf1de;
     --q4:#b5654f;      /* 変動×不定期 */
     --q4-light:#f5eae7;
+    --fund:#5b7fa0;
+    --fund-light:#e9eff5;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -75,6 +77,7 @@
     border-radius:12px;
     padding:12px 14px;
   }
+  .section.total-section{ border-top:3px solid var(--fund); }
   .section-title{
     font-size:14px;
     font-weight:700;
@@ -84,6 +87,7 @@
     align-items:center;
   }
   .section-title .count{ font-size:11px; color:var(--sub); font-weight:400; }
+  .section-desc{ font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6; }
 
   /* --- 説明フローチャート(SVG) --- */
   .flow-wrap{ text-align:center; }
@@ -160,6 +164,90 @@
     color:var(--sub);
   }
 
+  /* --- 積立計算(不定期項目のみ表示) --- */
+  .fund-enable-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px dashed var(--border);
+  }
+  .fund-enable-row .fund-enable-label{ font-size:11.5px; color:var(--text); }
+  .fund-enable-row .fund-enable-sub{ font-size:10px; color:var(--sub); margin-top:1px; }
+  .fund-enable-seg{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+    flex-shrink:0;
+  }
+  .fund-enable-seg button{
+    border:none;
+    background:#fff;
+    font-size:11px;
+    padding:6px 10px;
+    color:var(--sub);
+    cursor:pointer;
+  }
+  .fund-enable-seg button.active{ background:var(--fund); color:#fff; font-weight:600; }
+  .fund-wrap{
+    margin-top:10px;
+  }
+  .fund-label{ font-size:11px; color:var(--fund); font-weight:600; margin-bottom:6px; }
+  .fund-seg{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+    margin-bottom:8px;
+  }
+  .fund-seg button{
+    flex:1;
+    border:none;
+    background:#fff;
+    font-size:11px;
+    padding:7px 0;
+    color:var(--sub);
+    cursor:pointer;
+  }
+  .fund-seg button.active{ background:var(--text); color:#fff; font-weight:600; }
+  .fund-field-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:6px;
+    font-size:11px;
+    color:var(--sub);
+  }
+  .fund-field-row .field-label{ flex-shrink:0; width:66px; }
+  .fund-field-row input[type=number]{
+    min-width:0;
+    flex:1;
+    text-align:right;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .fund-field-row .unit{ flex-shrink:0; font-size:11px; color:var(--sub); }
+  .fund-ym-pair{ display:flex; gap:4px; flex:1; }
+  .fund-ym-pair input{ flex:1; }
+  .fund-result{
+    margin-top:2px;
+    padding:8px 10px;
+    border-radius:8px;
+    background:var(--fund-light);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .fund-result .label{ font-size:11px; color:var(--sub); }
+  .fund-result .value{ font-size:15px; font-weight:700; color:var(--fund); }
+  .fund-result.warn .value{ font-size:11px; font-weight:600; color:var(--q3); }
+
   .add-item-btn{
     width:100%;
     margin-top:6px;
@@ -234,6 +322,43 @@
     font-size:11px; color:var(--q4); text-align:center; margin-top:10px;
   }
 
+  /* --- 積立合計サマリー --- */
+  .summary-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:4px;
+  }
+  .summary-box{
+    background:#fafaf8;
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .summary-box .value{ font-size:19px; font-weight:700; color:var(--fund); }
+  .total-caption{
+    font-size:11px; color:var(--sub); text-align:center; margin:8px 0 10px;
+  }
+  .breakdown-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    padding:6px 0;
+    border-bottom:1px solid #f0efec;
+  }
+  .breakdown-row:last-child{ border-bottom:none; }
+  .breakdown-row .bname{ color:var(--text); }
+  .breakdown-row .bval{ color:var(--fund); font-weight:600; }
+  .tip-box{
+    margin-top:10px;
+    padding:10px;
+    background:var(--q3-light);
+    border-radius:8px;
+    font-size:11.5px;
+    color:var(--text);
+    line-height:1.6;
+  }
+
   .footer-note{
     text-align:center; font-size:11px; color:var(--sub);
     margin:20px 20px 0; line-height:1.6;
@@ -243,16 +368,14 @@
 <body>
 
 <header>
-  <h1>予算の組み方フローチャート</h1>
-  <div class="sub-text">支出項目を「固定/変動」「定期/不定期」の2軸で分類して、それぞれに合った予算の組み方を考えます</div>
+  <h1>支出を整理する</h1>
+  <div class="sub-text">支出項目を「固定/変動」「毎月/不定期」の2軸で分類します。不定期な支出のうち、あらかじめ積立が必要なもの(特別費)は毎月いくら積み立てればよいかもあわせて計算できます</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
-    <a href="flowchart.html" class="active">予算配分</a>
-    <a href="tokubetsuhi.html">特別費積立</a>
-    <a href="hiwari-kakeibo.html">残高チェック</a>
+    <a href="flowchart.html" class="active">支出を整理する</a>
     <a href="subscription-card.html">サブスク管理</a>
+    <a href="hiwari-kakeibo.html">残高チェック</a>
     <a href="lifeplan.html">ライフプラン</a>
-    <a href="kazoku-nenpyo.html">家族年表</a>
   </nav>
 </header>
 
@@ -260,8 +383,9 @@
   <div class="section-title"><span>分類の考え方</span></div>
   <div class="flow-wrap" id="flowSvg"></div>
   <div class="legend-line">
-    毎月・毎年など決まった周期で発生する → 定期／たまにしか発生しない → 不定期<br>
-    金額がほぼ一定 → 固定／その都度変わる → 変動
+    毎月・毎年など決まった周期で発生する → 毎月／たまにしか発生しない → 不定期<br>
+    金額がほぼ一定 → 固定／その都度変わる → 変動<br>
+    「不定期」に分類した項目は、必要なものだけ積立計算をオンにしてください
   </div>
 </div>
 
@@ -280,31 +404,50 @@
   <div class="section-title"><span>4象限マトリクス</span></div>
   <div class="matrix-grid">
     <div class="quad-box q1">
-      <div class="quad-title">固定 × 定期</div>
+      <div class="quad-title">固定 × 毎月</div>
       <div class="quad-total" id="q1Total">¥0</div>
       <div class="quad-tip">毎月ほぼ同額。給料日に先取りして専用口座へ。</div>
       <div class="quad-items" id="q1Items"></div>
     </div>
-    <div class="quad-box q2">
-      <div class="quad-title">固定 × 不定期</div>
-      <div class="quad-total" id="q2Total">¥0</div>
-      <div class="quad-tip">年1〜数回のまとまった支出。月割りで積み立てておく。</div>
-      <div class="quad-items" id="q2Items"></div>
-    </div>
     <div class="quad-box q3">
-      <div class="quad-title">変動 × 定期</div>
+      <div class="quad-title">変動 × 毎月</div>
       <div class="quad-total" id="q3Total">¥0</div>
       <div class="quad-tip">毎月発生するが金額が変わる。上限を決めて管理。</div>
       <div class="quad-items" id="q3Items"></div>
     </div>
+    <div class="quad-box q2">
+      <div class="quad-title">固定 × 不定期</div>
+      <div class="quad-total" id="q2Total">¥0</div>
+      <div class="quad-tip">年1〜数回のまとまった支出。必要なら積立計算へ。</div>
+      <div class="quad-items" id="q2Items"></div>
+    </div>
     <div class="quad-box q4">
       <div class="quad-title">変動 × 不定期</div>
       <div class="quad-total" id="q4Total">¥0</div>
-      <div class="quad-tip">予測しにくい支出。予備費・バッファ資金で備える。</div>
+      <div class="quad-tip">予測しにくい支出。必要なら積立計算へ。</div>
       <div class="quad-items" id="q4Items"></div>
     </div>
   </div>
   <div class="unclassified-note" id="unclassifiedNote"></div>
+</div>
+
+<div class="section total-section">
+  <div class="section-title"><span>特別費(不定期支出)の積立合計</span></div>
+  <div class="section-desc">上で「不定期」に分類した項目のうち、積立計算を入力した項目の合計です</div>
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="label">年間の特別費 合計</div>
+      <div class="value" id="totalAnnual">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">毎月の積立額 合計</div>
+      <div class="value" id="totalMonthly">¥0</div>
+    </div>
+  </div>
+  <div class="total-caption">毎月「特別費積立」としてこの金額を先取りしておくのが目安です</div>
+  <div id="breakdownList"></div>
+  <button class="reload-btn" id="writeToAnnualBtn">年間収支計画表に「特別費積立」として書き込む</button>
+  <div class="tip-box">上のボタンを押すと、年間収支計画表の支出項目に「特別費積立」として毎月の積立額合計が登録されます(すでにある場合は金額を更新します)。</div>
 </div>
 
 <div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
@@ -312,15 +455,45 @@
 <script>
 const SOURCE_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
 const SELF_KEY = 'yosan-kumitate-flowchart-v1';
+const OLD_TOKUBETSUHI_KEY = 'tokubetsuhi-tsumitate-v1'; // 旧・特別費積立プランナー(統合元、読み取り専用で1回だけ引き継ぐ)
+const WRITE_ITEM_NAME = '特別費積立';
+
+function newId(){
+  return 'i' + Date.now() + Math.random().toString(16).slice(2);
+}
 
 let state = loadState();
+migrateFromOldTokubetsuhi();
+
+function blankItem(name, amount){
+  return {
+    id: newId(), name: name, amount: amount,
+    fixed: null, regular: null,
+    fundEnabled: false,
+    fundMode: null, fundAnnualAmount:'', fundTargetAmount:'', fundYears:'', fundMonths:'', fundSaved:''
+  };
+}
 
 function loadState(){
   try{
     const raw = localStorage.getItem(SELF_KEY);
     if(raw){
       const parsed = JSON.parse(raw);
-      if(parsed && Array.isArray(parsed.items)) return parsed;
+      if(parsed && Array.isArray(parsed.items)){
+        parsed.items.forEach(it=>{
+          if(it.fundMode===undefined) it.fundMode = null;
+          if(it.fundAnnualAmount===undefined) it.fundAnnualAmount = '';
+          if(it.fundTargetAmount===undefined) it.fundTargetAmount = '';
+          if(it.fundYears===undefined) it.fundYears = '';
+          if(it.fundMonths===undefined) it.fundMonths = '';
+          if(it.fundSaved===undefined) it.fundSaved = '';
+          // fundEnabledが未定義の既存データは、積立の値が入っていれば引き続きON扱いにする
+          if(it.fundEnabled===undefined){
+            it.fundEnabled = !!(it.fundMode && (it.fundAnnualAmount || it.fundTargetAmount || it.fundYears || it.fundMonths));
+          }
+        });
+        return parsed;
+      }
     }
   }catch(e){}
   // 初回は年間収支計画表の支出項目から自動で取り込む
@@ -331,6 +504,39 @@ function loadState(){
 
 function saveState(){
   localStorage.setItem(SELF_KEY, JSON.stringify(state));
+}
+
+// 旧・特別費積立プランナー(tokubetsuhi.html)のデータが残っていれば、1回だけこちらに引き継ぐ。
+// 名前が一致する項目があれば積立設定を上書きし、無ければ「不定期」項目として新規追加する。
+function migrateFromOldTokubetsuhi(){
+  if(state.migratedTokubetsuhi) return;
+  try{
+    const raw = localStorage.getItem(OLD_TOKUBETSUHI_KEY);
+    if(raw){
+      const old = JSON.parse(raw);
+      if(old && Array.isArray(old.items) && old.items.length){
+        old.items.forEach(oi=>{
+          const name = (oi.name||'').trim();
+          if(!name) return;
+          let target = state.items.find(it=>(it.name||'').trim()===name);
+          if(!target){
+            target = blankItem(name, '');
+            state.items.push(target);
+          }
+          target.regular = false;
+          target.fundEnabled = true;
+          target.fundMode = oi.mode || 'annual';
+          target.fundAnnualAmount = oi.annualAmount || '';
+          target.fundTargetAmount = oi.targetAmount || '';
+          target.fundYears = oi.years || '';
+          target.fundMonths = oi.months || '';
+          target.fundSaved = oi.saved || '';
+        });
+      }
+    }
+  }catch(e){}
+  state.migratedTokubetsuhi = true;
+  saveState();
 }
 
 function loadSourceExpenseList(){
@@ -346,7 +552,7 @@ function loadSourceExpenseList(){
 
 // 年間収支計画表の支出項目を items に同期する。
 // 同じ名前の項目が既にあれば金額だけ最新化し、無ければ新規追加する。
-// (分類状態 fixed/regular は既存項目のものを保持する)
+// (分類状態・積立設定は既存項目のものを保持する)
 function syncItemsFromSource(items){
   const source = loadSourceExpenseList();
   const byName = new Map(items.map(it=>[it.name, it]));
@@ -362,13 +568,7 @@ function syncItemsFromSource(items){
         updated++;
       }
     }else{
-      const newItem = {
-        id: 'i' + Date.now() + Math.random().toString(16).slice(2),
-        name: name,
-        amount: amt,
-        fixed: null,
-        regular: null
-      };
+      const newItem = blankItem(name, amt);
       items.push(newItem);
       byName.set(name, newItem);
       added++;
@@ -386,6 +586,20 @@ function escapeAttr(str){
   return div.innerHTML;
 }
 
+function computeFund(item){
+  if(item.fundMode === 'target'){
+    const totalMonths = (parseInt(item.fundYears)||0)*12 + (parseInt(item.fundMonths)||0);
+    const remaining = Math.max((parseFloat(item.fundTargetAmount)||0) - (parseFloat(item.fundSaved)||0), 0);
+    if(totalMonths <= 0){
+      return { monthly:0, valid:false };
+    }
+    return { monthly: remaining/totalMonths, valid:true };
+  }else{
+    const amt = parseFloat(item.fundAnnualAmount)||0;
+    return { monthly: amt/12, valid:true };
+  }
+}
+
 function renderItemList(){
   const container = document.getElementById('itemList');
   container.innerHTML = '';
@@ -395,6 +609,59 @@ function renderItemList(){
   state.items.forEach((item, idx)=>{
     const card = document.createElement('div');
     card.className = 'item-card';
+
+    let fundHtml = '';
+    if(item.regular === false){
+      let calcHtml = '';
+      if(item.fundEnabled){
+        const fields = item.fundMode === 'target'
+          ? `<div class="fund-field-row">
+              <span class="field-label">目標金額</span>
+              <input type="number" inputmode="numeric" class="ff-target" value="${item.fundTargetAmount}" placeholder="例: 2000000">
+              <span class="unit">円</span>
+            </div>
+            <div class="fund-field-row">
+              <span class="field-label">あと</span>
+              <div class="fund-ym-pair">
+                <input type="number" inputmode="numeric" class="ff-years" value="${item.fundYears}" placeholder="年">
+                <input type="number" inputmode="numeric" class="ff-months" value="${item.fundMonths}" placeholder="ヶ月">
+              </div>
+              <span class="unit">後</span>
+            </div>
+            <div class="fund-field-row">
+              <span class="field-label">すでに貯蓄</span>
+              <input type="number" inputmode="numeric" class="ff-saved" value="${item.fundSaved}" placeholder="0">
+              <span class="unit">円</span>
+            </div>`
+          : `<div class="fund-field-row">
+              <span class="field-label">年間想定額</span>
+              <input type="number" inputmode="numeric" class="ff-annual" value="${item.fundAnnualAmount}" placeholder="例: 30000">
+              <span class="unit">円/年</span>
+            </div>`;
+        calcHtml = `
+          <div class="fund-seg">
+            <button data-val="annual" class="${item.fundMode!=='target'?'active':''}">年間見積もり</button>
+            <button data-val="target" class="${item.fundMode==='target'?'active':''}">目標時期あり</button>
+          </div>
+          <div class="fund-fields-wrap">${fields}</div>
+          <div class="fund-result-wrap"></div>`;
+      }
+      fundHtml = `
+        <div class="fund-wrap">
+          <div class="fund-enable-row">
+            <div>
+              <div class="fund-enable-label">積立計算</div>
+              <div class="fund-enable-sub">不定期な支出のすべてが積立(特別費)とは限りません</div>
+            </div>
+            <div class="fund-enable-seg">
+              <button data-val="off" class="${!item.fundEnabled?'active':''}">しない</button>
+              <button data-val="on" class="${item.fundEnabled?'active':''}">する</button>
+            </div>
+          </div>
+          <div class="fund-calc-wrap">${calcHtml}</div>
+        </div>`;
+    }
+
     card.innerHTML = `
       <div class="item-row-top">
         <input type="text" value="${escapeAttr(item.name)}" placeholder="項目名" maxlength="14">
@@ -407,11 +674,12 @@ function renderItemList(){
           <button data-val="false" class="${item.fixed===false?'active':''}">変動</button>
         </div>
         <div class="seg regular-seg">
-          <button data-val="true" class="${item.regular===true?'active':''}">定期</button>
+          <button data-val="true" class="${item.regular===true?'active':''}">毎月</button>
           <button data-val="false" class="${item.regular===false?'active':''}">不定期</button>
         </div>
       </div>
-      <div class="item-quadrant-tag">${quadrantLabel(item)}</div>`;
+      <div class="item-quadrant-tag">${quadrantLabel(item)}</div>
+      ${fundHtml}`;
 
     const nameInput = card.querySelector('input[type=text]');
     const amountInput = card.querySelector('input[type=number]');
@@ -434,12 +702,87 @@ function renderItemList(){
     });
     regularBtns.forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        item.regular = btn.dataset.val === 'true';
-        regularBtns.forEach(b=>b.classList.toggle('active', b===btn));
-        tag.textContent = quadrantLabel(item);
-        saveState(); renderMatrix();
+        const newVal = btn.dataset.val === 'true';
+        if(item.regular === newVal) return;
+        item.regular = newVal;
+        saveState();
+        render();
       });
     });
+
+    // 積立オン/オフの切り替え(不定期項目のみ)
+    if(item.regular === false){
+      const enableBtns = card.querySelectorAll('.fund-enable-seg button');
+      enableBtns.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const on = btn.dataset.val === 'on';
+          if(item.fundEnabled === on) return;
+          item.fundEnabled = on;
+          if(on){
+            if(!item.fundMode) item.fundMode = 'annual';
+            // 項目の金額(年間収支計画表などから引き継いだ「年額」)を、積立計算の年間想定額の初期値として流用する
+            if(item.fundMode === 'annual' && !item.fundAnnualAmount && item.amount){
+              item.fundAnnualAmount = item.amount;
+            }
+          }
+          saveState();
+          renderItemList();
+          renderTotals();
+        });
+      });
+    }
+
+    // 積立計算まわりのイベント(積立オンの項目のみ)
+    if(item.regular === false && item.fundEnabled){
+      const fundSegBtns = card.querySelectorAll('.fund-seg button');
+      const resultWrap = card.querySelector('.fund-result-wrap');
+      const mainAmountInput = card.querySelector('.item-row-top input[type=number]');
+
+      function refreshFundResult(){
+        const r = computeFund(item);
+        if(r.valid){
+          resultWrap.innerHTML = `<div class="fund-result"><span class="label">毎月の積立額</span><span class="value">${yen(r.monthly)}</span></div>`;
+          // 計算結果(毎月の積立額)を、そのまま項目の金額欄(4象限マトリクスの集計に使う値)に反映する
+          const monthly = Math.round(r.monthly);
+          if(item.amount !== monthly){
+            item.amount = monthly;
+            if(mainAmountInput) mainAmountInput.value = monthly;
+            saveState();
+            renderMatrix();
+          }
+        }else{
+          resultWrap.innerHTML = `<div class="fund-result warn"><span class="label">毎月の積立額</span><span class="value">期間を入力してください</span></div>`;
+        }
+      }
+
+      fundSegBtns.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          if(item.fundMode === btn.dataset.val) return;
+          item.fundMode = btn.dataset.val;
+          saveState();
+          renderItemList();
+          renderTotals();
+        });
+      });
+
+      function bindFundNumber(selector, field){
+        const el = card.querySelector(selector);
+        if(!el) return;
+        el.addEventListener('input', e=>{
+          item[field] = e.target.value;
+          saveState();
+          refreshFundResult();
+          renderTotals();
+        });
+      }
+      bindFundNumber('.ff-annual','fundAnnualAmount');
+      bindFundNumber('.ff-target','fundTargetAmount');
+      bindFundNumber('.ff-years','fundYears');
+      bindFundNumber('.ff-months','fundMonths');
+      bindFundNumber('.ff-saved','fundSaved');
+
+      refreshFundResult();
+    }
 
     container.appendChild(card);
   });
@@ -447,9 +790,9 @@ function renderItemList(){
 
 function quadrantLabel(item){
   if(item.fixed===null || item.regular===null) return '未分類';
-  if(item.fixed && item.regular) return '固定×定期';
+  if(item.fixed && item.regular) return '固定×毎月';
   if(item.fixed && !item.regular) return '固定×不定期';
-  if(!item.fixed && item.regular) return '変動×定期';
+  if(!item.fixed && item.regular) return '変動×毎月';
   return '変動×不定期';
 }
 
@@ -482,8 +825,28 @@ function renderMatrix(){
   note.textContent = unclassified>0 ? `未分類の項目が${unclassified}件あります` : '';
 }
 
+let currentMonthlyTotal = 0;
+
+function renderTotals(){
+  let total = 0;
+  const rows = [];
+  state.items.forEach(item=>{
+    if(item.regular !== false || !item.fundEnabled) return;
+    const r = computeFund(item);
+    if(r.valid && r.monthly > 0){
+      total += r.monthly;
+      rows.push({ name:item.name || '（無題）', monthly:r.monthly });
+    }
+  });
+  currentMonthlyTotal = total;
+  document.getElementById('totalMonthly').textContent = yen(total);
+  document.getElementById('totalAnnual').textContent = yen(total*12);
+  const list = document.getElementById('breakdownList');
+  list.innerHTML = rows.map(r=>`<div class="breakdown-row"><span class="bname">${escapeAttr(r.name)}</span><span class="bval">${yen(r.monthly)}</span></div>`).join('');
+}
+
 document.getElementById('addItemBtn').addEventListener('click', ()=>{
-  state.items.push({ id:'i'+Date.now()+Math.random().toString(16).slice(2), name:'', amount:'', fixed:null, regular:null });
+  state.items.push(blankItem('', ''));
   saveState();
   render();
 });
@@ -500,6 +863,45 @@ document.getElementById('reloadBtn').addEventListener('click', ()=>{
     if(updated > 0) parts.push(`金額を更新 ${updated}件`);
     alert(parts.join(' / '));
   }
+});
+
+// 年間収支計画表(index.html)の支出項目に「特別費積立」として金額を書き込む。
+function writeMonthlyTotalToAnnualBudget(monthlyTotal){
+  let budget;
+  try{
+    const raw = localStorage.getItem(SOURCE_KEY);
+    budget = raw ? JSON.parse(raw) : null;
+  }catch(e){ budget = null; }
+  if(!budget || !Array.isArray(budget.income) || !Array.isArray(budget.expense)){
+    budget = { year: new Date().getFullYear(), income: [], expense: [] };
+  }
+
+  const amount = Math.round(monthlyTotal);
+  const existing = budget.expense.find(it => (it.name||'').trim() === WRITE_ITEM_NAME);
+  let mode;
+  if(existing){
+    existing.amount = amount;
+    if(!existing.count) existing.count = 12;
+    mode = 'update';
+  }else{
+    budget.expense.push({ name: WRITE_ITEM_NAME, amount: amount, count: 12 });
+    mode = 'add';
+  }
+
+  localStorage.setItem(SOURCE_KEY, JSON.stringify(budget));
+  return { mode, amount };
+}
+
+document.getElementById('writeToAnnualBtn').addEventListener('click', ()=>{
+  if(currentMonthlyTotal <= 0){
+    alert('積立額が計算できる項目がありません。不定期な項目のうち積立が必要なものを「積立計算：する」にして入力してください。');
+    return;
+  }
+  const { mode, amount } = writeMonthlyTotalToAnnualBudget(currentMonthlyTotal);
+  const msg = mode === 'update'
+    ? `年間収支計画表の「特別費積立」を ${yen(amount)}/月 に更新しました`
+    : `年間収支計画表に「特別費積立」(${yen(amount)}/月)を追加しました`;
+  alert(msg);
 });
 
 function renderFlowSvg(){
@@ -536,10 +938,10 @@ function renderFlowSvg(){
     <line x1="282" y1="92" x2="362" y2="122" class="arw"/>
     <text x="340" y="108" text-anchor="middle" class="lbl2">いいえ</text>
 
-    <!-- Q2 left (定期) -->
+    <!-- Q2 left (毎月) -->
     <rect x="10" y="124" width="180" height="38" rx="8" class="box"/>
     <text x="100" y="140" text-anchor="middle" class="lbl">金額はほぼ</text>
-    <text x="100" y="154" text-anchor="middle" class="lbl">一定？（定期）</text>
+    <text x="100" y="154" text-anchor="middle" class="lbl">一定？（毎月）</text>
 
     <!-- Q2 right (不定期) -->
     <rect x="242" y="124" width="180" height="38" rx="8" class="box"/>
@@ -558,11 +960,11 @@ function renderFlowSvg(){
 
     <rect x="8" y="184" width="94" height="50" rx="8" class="qbox" fill="#4a7c6e" stroke="#4a7c6e"/>
     <text x="55" y="204" text-anchor="middle" class="wlbl">固定</text>
-    <text x="55" y="220" text-anchor="middle" class="wlbl">×定期</text>
+    <text x="55" y="220" text-anchor="middle" class="wlbl">×毎月</text>
 
     <rect x="106" y="184" width="94" height="50" rx="8" class="qbox" fill="#c99a3e" stroke="#c99a3e"/>
     <text x="153" y="204" text-anchor="middle" class="wlbl">変動</text>
-    <text x="153" y="220" text-anchor="middle" class="wlbl">×定期</text>
+    <text x="153" y="220" text-anchor="middle" class="wlbl">×毎月</text>
 
     <rect x="240" y="184" width="94" height="50" rx="8" class="qbox" fill="#5b7fa0" stroke="#5b7fa0"/>
     <text x="287" y="204" text-anchor="middle" class="wlbl">固定</text>
@@ -578,6 +980,7 @@ function renderFlowSvg(){
 function render(){
   renderItemList();
   renderMatrix();
+  renderTotals();
 }
 
 renderFlowSvg();
