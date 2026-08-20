@@ -301,7 +301,8 @@
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
     <a href="tokubetsuhi.html">特別費の積立</a>
-    <a href="subscription-card.html">サブスク管理</a>
+    <a href="subscription.html">サブスク管理</a>
+    <a href="card.html">カード管理</a>
     <a href="hiwari-kakeibo.html" class="active">残高チェック</a>
     <a href="lifeplan.html">ライフプラン</a>
     <a href="kazoku-nenpyo.html">家族年表</a>
@@ -332,7 +333,7 @@
   <div class="empty-note" id="emptyNote" style="display:none;">予定がありません。下のボタンから追加してください</div>
   <button class="add-item-btn" id="addItemBtn">＋ 予定を追加</button>
   <button class="reload-btn" id="reloadSubBtn">サブスク管理から毎月の請求日を読み込む</button>
-  <div class="sync-tip">サブスク管理の「月次」サブスクを取り込みます。支払い方法が未設定のものは請求日ごとに個別の予定として登録し、金額もサブスク側の変更に合わせて自動更新されます。カードが設定されているものは、個別には登録せず、カードごとに「◯◯カード引き落とし」という予定行をカードの引き落とし日に(無ければ)自動作成します。カードの請求額にはサブスク以外の買い物も含まれるため、金額は自動更新されません。初回作成時のみサブスク合計を仮の金額として入れておくので、実際の請求額に書き換えてください。年払いのサブスクや引き落とし日未設定のカードは対象外です。</div>
+  <div class="sync-tip">サブスク管理の「月次」サブスクを、請求日ごとに個別の予定として取り込みます。金額もサブスク側の変更に合わせて自動更新されます。年払いのサブスクは対象外です。(カードでまとめて引き落とされるものを1つの予定にまとめたい場合は、そちらの金額のみ手動で調整してください)</div>
 </div>
 
 <div class="section">
@@ -367,7 +368,7 @@
 
 <script>
 const SELF_KEY = 'zandaka-check-v1';
-const SUB_KEY = 'subscription-card-v1'; // サブスク管理(読み取り専用で参照)
+const SUB_KEY = 'subscription-v1'; // サブスク管理(読み取り専用で参照)
 
 let state = loadState();
 
@@ -408,12 +409,7 @@ function newId(){
 }
 
 // サブスク管理の「月次」サブスクを支出予定として同期する。
-// ・カード払い設定が無いサブスク(銀行引き落とし等) → 個別の予定として、名前ベースでマージ(金額も自動更新)
-// ・カード払い設定があるサブスク → 実際にお金が動くのはカードの引き落とし日で、かつ
-//   カードの請求額にはサブスク以外の買い物も含まれるため、金額は自動計算・上書きしない。
-//   カードごとに「◯◯カード引き落とし」という予定行を(無ければ)自動作成し、日付だけを
-//   カードの引き落とし日に合わせる。金額はご自身で実際の請求額を入力する。
-// 年払い(yearly)のサブスクは対象外。
+// 名前ベースでマージし、日付・金額を自動更新する。年払い(yearly)のサブスクは対象外。
 function syncItemsFromSubscriptions(){
   let sub;
   try{
@@ -424,13 +420,9 @@ function syncItemsFromSubscriptions(){
 
   const monthlyItems = sub.items.filter(it => it.cycle === 'monthly' && (it.name||'').trim() && parseFloat(it.amount));
   const yearlySkipped = sub.items.filter(it => it.cycle === 'yearly' && (it.name||'').trim() && parseFloat(it.amount)).length;
-  const cards = Array.isArray(sub.cards) ? sub.cards : [];
-
-  const directItems = monthlyItems.filter(it => !it.cardId);
-  const cardItems = monthlyItems.filter(it => it.cardId);
 
   const byName = new Map(state.items.map(it=>[(it.name||'').trim(), it]));
-  let added = 0, updated = 0, cardsSkipped = 0;
+  let added = 0, updated = 0;
 
   // amountはサブスクからの自動更新用。既存項目があれば日付・金額・種別を最新化する。
   function upsertAuto(name, day, amount){
@@ -450,26 +442,7 @@ function syncItemsFromSubscriptions(){
     }
   }
 
-  // カード引き落とし用。既存項目があれば日付だけ合わせ、金額には触れない(手入力を尊重)。
-  // 新規作成時のみサブスク合計を「仮金額」として入れておく。
-  function upsertCardPayment(name, day, suggestedAmount){
-    if(byName.has(name)){
-      const existing = byName.get(name);
-      if(parseInt(existing.day) !== day || existing.type !== 'expense'){
-        existing.day = day;
-        existing.type = 'expense';
-        updated++;
-      }
-    }else{
-      const newItem = { id:newId(), day:day, name:name, amount:suggestedAmount, type:'expense' };
-      state.items.push(newItem);
-      byName.set(name, newItem);
-      added++;
-    }
-  }
-
-  // カード未設定分：個別に登録(金額もサブスク側と同期)
-  directItems.forEach(it=>{
+  monthlyItems.forEach(it=>{
     const name = it.name.trim();
     let day = parseInt(it.day) || 1;
     if(day < 1) day = 1;
@@ -478,25 +451,7 @@ function syncItemsFromSubscriptions(){
     upsertAuto(name, day, amount);
   });
 
-  // カード設定分：カードごとに引き落とし日の予定行を用意する(金額は手入力に任せる)
-  const groupedByCard = new Map();
-  cardItems.forEach(it=>{
-    const key = it.cardId;
-    groupedByCard.set(key, (groupedByCard.get(key)||0) + (parseFloat(it.amount)||0));
-  });
-  groupedByCard.forEach((subTotal, cardId)=>{
-    const cardRecord = cards.find(c=>c.id===cardId);
-    const payDay = cardRecord ? parseInt(cardRecord.payDay) : NaN;
-    if(!cardRecord || !payDay || payDay < 1 || payDay > 31){
-      cardsSkipped++;
-      return;
-    }
-    const cardName = (cardRecord.name||'').trim() || '（無題カード）';
-    const name = `${cardName}引き落とし`;
-    upsertCardPayment(name, payDay, Math.round(subTotal));
-  });
-
-  return { ok:true, added, updated, yearlySkipped, cardsSkipped };
+  return { ok:true, added, updated, yearlySkipped };
 }
 
 function todayDay(){
@@ -694,7 +649,6 @@ document.getElementById('reloadSubBtn').addEventListener('click', ()=>{
     let msg = 'サブスク管理との差分はありませんでした';
     const notes = [];
     if(result.yearlySkipped > 0) notes.push(`年払い${result.yearlySkipped}件`);
-    if(result.cardsSkipped > 0) notes.push(`引き落とし日未設定のカード${result.cardsSkipped}件`);
     if(notes.length) msg += `(${notes.join('、')}は対象外のため未反映です)`;
     alert(msg);
   }else{
@@ -704,7 +658,6 @@ document.getElementById('reloadSubBtn').addEventListener('click', ()=>{
     let msg = parts.join(' / ');
     const notes = [];
     if(result.yearlySkipped > 0) notes.push(`年払い${result.yearlySkipped}件`);
-    if(result.cardsSkipped > 0) notes.push(`引き落とし日未設定のカード${result.cardsSkipped}件`);
     if(notes.length) msg += `\n(${notes.join('、')}は対象外のため未反映です)`;
     alert(msg);
   }
