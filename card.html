@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>カード管理</title>
+<style>
+  :root{
+    --bg:#f5f5f3;
+    --card:#ffffff;
+    --border:#e2e0db;
+    --text:#2b2b28;
+    --sub:#8a8680;
+    --main:#3d7a94;
+    --main-light:#e5f0f3;
+    --cat-sub:#3d7a94;
+    --cat-fixed:#4a7c6e;
+    --cat-variable:#c99a3e;
+    --cat-special:#5b7fa0;
+    --cat-other:#8a8680;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    max-width:480px;
+    margin:0 auto;
+    padding-bottom:40px;
+  }
+  header{
+    padding:18px 16px 12px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{ font-size:17px; margin:0 0 2px; font-weight:600; }
+  .sub-text{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.6; }
+  .app-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .app-nav::-webkit-scrollbar{ display:none; }
+  .app-nav a{
+    flex-shrink:0;
+    font-size:11px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--border);
+    color:var(--sub);
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .app-nav a.active{
+    background:var(--text);
+    border-color:var(--text);
+    color:#fff;
+    font-weight:600;
+  }
+
+  .section{
+    margin:14px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .section.main-section{ border-top:3px solid var(--main); }
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-title .count{ font-size:11px; color:var(--sub); font-weight:400; }
+  .section-desc{ font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6; }
+
+  /* --- カード一覧 --- */
+  .paycard-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 0;
+    border-bottom:1px solid #f0efec;
+  }
+  .paycard-row:last-of-type{ border-bottom:none; }
+  .paycard-row input[type=text]{ flex:1.3; min-width:0; }
+  .paycard-row .payday-wrap{ display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .paycard-row .payday-wrap input{ width:44px; text-align:center; }
+  .paycard-row .payday-wrap span{ font-size:11px; color:var(--sub); }
+  .paycard-row input{
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fafaf8;
+    color:var(--text);
+  }
+  .paycard-row .del-btn{
+    border:none; background:none; color:var(--sub);
+    font-size:16px; line-height:1; padding:2px 0 2px 2px; cursor:pointer; flex-shrink:0;
+  }
+
+  /* --- 支払い項目カード --- */
+  .item-card{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:8px;
+    background:#fafaf8;
+  }
+  .item-row-top{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .item-row-top input[type=text]{
+    flex:1.3;
+    min-width:0;
+    font-size:12.5px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top input[type=number]{
+    flex:1;
+    min-width:0;
+    text-align:right;
+    font-size:12.5px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .item-row-top .del-btn{
+    border:none; background:none; color:var(--sub);
+    font-size:17px; line-height:1; padding:2px 2px; cursor:pointer; flex-shrink:0;
+  }
+  .field-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:6px;
+    font-size:11.5px;
+    color:var(--sub);
+  }
+  .field-row:last-child{ margin-bottom:0; }
+  .field-row .field-label{ flex-shrink:0; width:56px; }
+  .field-row select{
+    min-width:0;
+    flex:1;
+    font-size:12px;
+    padding:7px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+  }
+  .cat-tag{
+    display:inline-block;
+    font-size:10px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:999px;
+    color:#fff;
+  }
+  .cat-tag.cat-sub{ background:var(--cat-sub); }
+  .cat-tag.cat-fixed{ background:var(--cat-fixed); }
+  .cat-tag.cat-variable{ background:var(--cat-variable); }
+  .cat-tag.cat-special{ background:var(--cat-special); }
+  .cat-tag.cat-other{ background:var(--cat-other); }
+
+  .add-item-btn{
+    width:100%;
+    margin-top:6px;
+    padding:9px;
+    border:1px dashed var(--border);
+    border-radius:8px;
+    background:none;
+    font-size:13px;
+    color:var(--sub);
+  }
+  .empty-note{
+    font-size:12px; color:var(--sub); text-align:center; padding:14px 4px;
+  }
+  .reload-btn{
+    width:100%;
+    margin-top:10px;
+    padding:8px;
+    border:none;
+    border-radius:8px;
+    background:var(--main-light);
+    color:var(--main);
+    font-size:12px;
+    font-weight:600;
+  }
+  .sync-tip{
+    font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;
+  }
+
+  /* --- カード別内訳(種類ごと) --- */
+  .card-breakdown{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    background:#fafaf8;
+  }
+  .card-breakdown:last-child{ margin-bottom:0; }
+  .cb-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:2px;
+  }
+  .cb-head .cb-name{ font-size:13px; font-weight:700; color:var(--text); }
+  .cb-head .cb-total{ font-size:15px; font-weight:700; color:var(--main); }
+  .cb-note{ font-size:10.5px; color:var(--sub); margin-bottom:8px; }
+  .cb-cat-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:11.5px;
+    padding:5px 0;
+    border-top:1px dashed #e5e2db;
+  }
+  .cb-cat-row:first-of-type{ border-top:none; }
+  .cb-cat-row .cb-cat-val{ font-weight:600; color:var(--text); }
+
+  /* --- サマリー --- */
+  .summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .summary-box{ background:#fafaf8; border-radius:8px; padding:10px 12px; }
+  .summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .summary-box .value{ font-size:17px; font-weight:700; color:var(--main); }
+  .summary-box.full{ grid-column:1 / -1; }
+
+  .footer-note{
+    text-align:center; font-size:11px; color:var(--sub);
+    margin:20px 20px 0; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>カード管理</h1>
+  <div class="sub-text">クレジットカード・口座振替ごとに、どんな種類の支払いが乗っているかを登録して、カード別の内訳を確認できます</div>
+  <nav class="app-nav">
+    <a href="index.html">年間収支</a>
+    <a href="tokubetsuhi.html">特別費の積立</a>
+    <a href="subscription.html">サブスク管理</a>
+    <a href="card.html" class="active">カード管理</a>
+    <a href="hiwari-kakeibo.html">残高チェック</a>
+    <a href="lifeplan.html">ライフプラン</a>
+    <a href="kazoku-nenpyo.html">家族年表</a>
+  </nav>
+</header>
+
+<div class="section-desc" style="margin:14px 12px 0;">クレジットカードや口座振替ごとに、支払い項目とその内訳(種類別)をまとめて確認できます</div>
+
+<div id="cardGroups"></div>
+
+<button class="add-item-btn" id="addCardBtn" style="margin:8px 12px; width:calc(100% - 24px);">＋ カードを追加</button>
+
+<div class="section">
+  <div class="section-title"><span>カード未設定の支払い</span></div>
+  <div id="unassignedList"></div>
+  <div class="empty-note" id="unassignedEmptyNote" style="display:none;">未設定の項目はありません</div>
+  <button class="add-item-btn" id="addUnassignedBtn">＋ 支払い項目を追加</button>
+  <button class="reload-btn" id="reloadSubBtn">サブスク管理から「サブスク」として読み込む</button>
+  <div class="sync-tip">サブスク管理に登録されている項目を、種類「サブスク」・カード未設定でまとめて取り込みます。取り込んだあとに、それぞれの項目を上のカードへ移してください(同じ名前の項目は金額を更新)。</div>
+</div>
+
+<div class="section main-section">
+  <div class="section-title"><span>全体サマリー</span></div>
+  <div class="summary-grid">
+    <div class="summary-box"><div class="label">月間合計(概算)</div><div class="value" id="sumMonthly">¥0</div></div>
+    <div class="summary-box"><div class="label">登録件数</div><div class="value" id="sumCount">0件</div></div>
+  </div>
+</div>
+
+<div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
+
+<script>
+const SELF_KEY = 'card-kanri-v1';
+const OLD_SELF_KEY = 'subscription-card-v1'; // 旧・サブスク&カード統合版(あれば1回だけカード一覧とカード割当済みの項目を引き継ぐ)
+const SUB_KEY = 'subscription-v1'; // サブスク管理(読み取り専用で参照)
+
+const CATEGORIES = [
+  { val:'sub', label:'サブスク', cls:'cat-sub' },
+  { val:'fixed', label:'固定費', cls:'cat-fixed' },
+  { val:'variable', label:'変動費', cls:'cat-variable' },
+  { val:'special', label:'特別費', cls:'cat-special' },
+  { val:'other', label:'その他', cls:'cat-other' },
+];
+function catInfo(val){ return CATEGORIES.find(c=>c.val===val) || CATEGORIES[CATEGORIES.length-1]; }
+
+let state = loadState();
+migrateFromOldTool();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(SELF_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.cards) && Array.isArray(parsed.items)) return parsed;
+    }
+  }catch(e){}
+  return { cards: [], items: [] };
+}
+function saveState(){
+  localStorage.setItem(SELF_KEY, JSON.stringify(state));
+}
+function newId(){
+  return 'i' + Date.now() + Math.random().toString(16).slice(2);
+}
+
+// 旧・サブスク&カード管理(統合版)のデータが残っていれば、1回だけ引き継ぐ。
+// カード一覧はそのまま、カードが割り当てられていた項目は種類「サブスク」として引き継ぐ。
+function migrateFromOldTool(){
+  if(state.migrated) return;
+  try{
+    const raw = localStorage.getItem(OLD_SELF_KEY);
+    if(raw){
+      const old = JSON.parse(raw);
+      const idMap = new Map();
+      if(old && Array.isArray(old.cards)){
+        old.cards.forEach(oc=>{
+          const newCardId = newId();
+          idMap.set(oc.id, newCardId);
+          state.cards.push({ id:newCardId, name:oc.name||'', payDay:oc.payDay||'' });
+        });
+      }
+      if(old && Array.isArray(old.items)){
+        old.items.forEach(oi=>{
+          if(!oi.cardId) return;
+          const mappedCardId = idMap.get(oi.cardId) || '';
+          if(!mappedCardId) return;
+          state.items.push({
+            id:newId(), name:oi.name||'', amount:oi.amount||'',
+            category:'sub', cardId:mappedCardId
+          });
+        });
+      }
+    }
+  }catch(e){}
+  state.migrated = true;
+  saveState();
+}
+
+function yen(n){
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+function escapeAttr(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- カード一覧 ---------- */
+function categoryOptionsHtml(selectedVal){
+  return CATEGORIES.map(c=>`<option value="${c.val}" ${c.val===selectedVal?'selected':''}>${c.label}</option>`).join('');
+}
+// 項目の「カード」移動用セレクト(未設定を含む)
+function moveCardOptionsHtml(selectedId){
+  let html = `<option value="" ${!selectedId?'selected':''}>未設定</option>`;
+  state.cards.forEach(c=>{
+    html += `<option value="${c.id}" ${c.id===selectedId?'selected':''}>${escapeAttr(c.name||'（無題）')}</option>`;
+  });
+  return html;
+}
+
+function catBreakdownHtml(items){
+  const byCat = {};
+  let total = 0;
+  items.forEach(it=>{
+    const amt = parseFloat(it.amount)||0;
+    total += amt;
+    byCat[it.category] = (byCat[it.category]||0) + amt;
+  });
+  const rows = CATEGORIES
+    .filter(cat => byCat[cat.val])
+    .map(cat => `<div class="cb-cat-row"><span class="cat-tag ${cat.cls}">${cat.label}</span><span class="cb-cat-val">${yen(byCat[cat.val])}</span></div>`)
+    .join('');
+  return { total, rows };
+}
+
+// 1件分の支払い項目カードのDOMを作る(所属カードは呼び出し側で決まっているので、項目内では名前・金額・種類・移動先だけを扱う)
+function buildItemCardEl(item, onChange){
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  card.innerHTML = `
+    <div class="item-row-top">
+      <input type="text" class="f-name" value="${escapeAttr(item.name)}" placeholder="支払い内容(例: Netflix、電気代)" maxlength="18">
+      <input type="number" inputmode="numeric" class="f-amount" value="${item.amount}" placeholder="金額">
+      <button class="del-btn">×</button>
+    </div>
+    <div class="field-row">
+      <span class="field-label">種類</span>
+      <select class="f-category">${categoryOptionsHtml(item.category)}</select>
+    </div>
+    <div class="field-row">
+      <span class="field-label">カード</span>
+      <select class="f-card">${moveCardOptionsHtml(item.cardId)}</select>
+    </div>`;
+
+  card.querySelector('.f-name').addEventListener('input', e=>{ item.name = e.target.value; saveState(); });
+  card.querySelector('.f-amount').addEventListener('input', e=>{ item.amount = e.target.value; saveState(); onChange(); });
+  card.querySelector('.del-btn').addEventListener('click', ()=>{
+    const idx = state.items.indexOf(item);
+    if(idx>-1) state.items.splice(idx,1);
+    saveState(); render();
+  });
+  card.querySelector('.f-category').addEventListener('change', e=>{ item.category = e.target.value; saveState(); onChange(); });
+  card.querySelector('.f-card').addEventListener('change', e=>{ item.cardId = e.target.value; saveState(); render(); });
+
+  return card;
+}
+
+/* ---------- カードごとのグループ描画 ---------- */
+function renderCardGroups(){
+  const container = document.getElementById('cardGroups');
+  container.innerHTML = '';
+
+  state.cards.forEach((c, cardIdx)=>{
+    const items = state.items.filter(it => it.cardId === c.id);
+    const { total, rows } = catBreakdownHtml(items);
+
+    const section = document.createElement('div');
+    section.className = 'section main-section';
+    section.innerHTML = `
+      <div class="paycard-row" style="border-bottom:1px solid var(--border); margin-bottom:10px; padding-bottom:10px;">
+        <input type="text" class="c-name" value="${escapeAttr(c.name)}" placeholder="カード名(例: 楽天カード)" maxlength="16">
+        <div class="payday-wrap"><input type="number" inputmode="numeric" class="c-payday" value="${c.payDay}" min="1" max="31" placeholder="日"><span>日引落</span></div>
+        <button class="del-btn c-del">×</button>
+      </div>
+      <div class="item-list-wrap"></div>
+      <button class="add-item-btn c-add">＋ このカードに支払い項目を追加</button>
+      <div class="card-breakdown" style="margin-top:10px;">
+        <div class="cb-head"><span class="cb-name">合計</span><span class="cb-total">${yen(total)}</span></div>
+        ${rows || '<div class="empty-note" style="padding:6px 0;">項目がありません</div>'}
+      </div>`;
+
+    const nameInput = section.querySelector('.c-name');
+    const payInput = section.querySelector('.c-payday');
+    const delBtn = section.querySelector('.c-del');
+    const listWrap = section.querySelector('.item-list-wrap');
+    const addBtn = section.querySelector('.c-add');
+
+    nameInput.addEventListener('input', e=>{ c.name = e.target.value; saveState(); });
+    nameInput.addEventListener('blur', ()=> render());
+    payInput.addEventListener('input', e=>{ c.payDay = e.target.value; saveState(); });
+    payInput.addEventListener('blur', ()=> render());
+    delBtn.addEventListener('click', ()=>{
+      state.cards.splice(cardIdx,1);
+      state.items.forEach(it=>{ if(it.cardId === c.id) it.cardId = ''; });
+      saveState(); render();
+    });
+    addBtn.addEventListener('click', ()=>{
+      state.items.push({ id:newId(), name:'', amount:'', category:'sub', cardId:c.id });
+      saveState(); render();
+    });
+
+    items.forEach(item=>{
+      listWrap.appendChild(buildItemCardEl(item, render));
+    });
+    if(items.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'empty-note';
+      empty.textContent = '支払い項目がありません';
+      listWrap.appendChild(empty);
+    }
+
+    container.appendChild(section);
+  });
+}
+document.getElementById('addCardBtn').addEventListener('click', ()=>{
+  state.cards.push({ id:newId(), name:'', payDay:'' });
+  saveState();
+  render();
+});
+
+/* ---------- カード未設定の支払い ---------- */
+function renderUnassigned(){
+  const items = state.items.filter(it => !it.cardId);
+  const container = document.getElementById('unassignedList');
+  container.innerHTML = '';
+  document.getElementById('unassignedEmptyNote').style.display = items.length ? 'none' : 'block';
+
+  items.forEach(item=>{
+    container.appendChild(buildItemCardEl(item, render));
+  });
+}
+document.getElementById('addUnassignedBtn').addEventListener('click', ()=>{
+  state.items.push({ id:newId(), name:'', amount:'', category:'sub', cardId:'' });
+  saveState();
+  render();
+});
+
+// サブスク管理の項目を、種類「サブスク」・カード未設定でまとめて取り込む。
+// 同じ名前の項目が既にあれば金額のみ更新し、無ければ新規追加する(カードの割当はそのまま)。
+function syncItemsFromSubscription(){
+  let sub;
+  try{
+    const raw = localStorage.getItem(SUB_KEY);
+    sub = raw ? JSON.parse(raw) : null;
+  }catch(e){ sub = null; }
+  if(!sub || !Array.isArray(sub.items)) return { ok:false };
+
+  let added = 0, updated = 0;
+  sub.items.forEach(si=>{
+    const name = (si.name||'').trim();
+    if(!name || !parseFloat(si.amount)) return;
+    const monthly = si.cycle === 'yearly' ? Math.round((parseFloat(si.amount)||0)/12) : Math.round(parseFloat(si.amount)||0);
+    const existing = state.items.find(it => (it.name||'').trim() === name && it.category === 'sub');
+    if(existing){
+      if(String(existing.amount) !== String(monthly)){ existing.amount = monthly; updated++; }
+    }else{
+      state.items.push({ id:newId(), name, amount:monthly, category:'sub', cardId:'' });
+      added++;
+    }
+  });
+  return { ok:true, added, updated };
+}
+document.getElementById('reloadSubBtn').addEventListener('click', ()=>{
+  const result = syncItemsFromSubscription();
+  if(!result.ok){
+    alert('サブスク管理のデータが見つかりませんでした。先にサブスク管理でサブスクを登録してください。');
+    return;
+  }
+  saveState();
+  render();
+  if(result.added === 0 && result.updated === 0){
+    alert('サブスク管理との差分はありませんでした');
+  }else{
+    const parts = [];
+    if(result.added > 0) parts.push(`新規追加 ${result.added}件`);
+    if(result.updated > 0) parts.push(`金額を更新 ${result.updated}件`);
+    alert(parts.join(' / '));
+  }
+});
+
+/* ---------- 全体サマリー ---------- */
+function renderSummary(){
+  document.getElementById('sumMonthly').textContent = yen(state.items.reduce((s,it)=>s+(parseFloat(it.amount)||0),0));
+  document.getElementById('sumCount').textContent = state.items.length + '件';
+}
+
+function render(){
+  renderCardGroups();
+  renderUnassigned();
+  renderSummary();
+}
+
+render();
+</script>
+</body>
+</html>
