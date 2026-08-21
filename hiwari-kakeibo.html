@@ -301,10 +301,7 @@
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
     <a href="tokubetsuhi.html">特別費の積立</a>
-    <a href="subscription.html">サブスク管理</a>
-    <a href="card.html">カード管理</a>
     <a href="hiwari-kakeibo.html" class="active">残高チェック</a>
-    <a href="lifeplan.html">ライフプラン</a>
     <a href="kazoku-nenpyo.html">家族年表</a>
   </nav>
 </header>
@@ -332,8 +329,6 @@
   <div id="itemList"></div>
   <div class="empty-note" id="emptyNote" style="display:none;">予定がありません。下のボタンから追加してください</div>
   <button class="add-item-btn" id="addItemBtn">＋ 予定を追加</button>
-  <button class="reload-btn" id="reloadSubBtn">サブスク管理から毎月の請求日を読み込む</button>
-  <div class="sync-tip">サブスク管理の「月次」サブスクを、請求日ごとに個別の予定として取り込みます。金額もサブスク側の変更に合わせて自動更新されます。年払いのサブスクは対象外です。(カードでまとめて引き落とされるものを1つの予定にまとめたい場合は、そちらの金額のみ手動で調整してください)</div>
 </div>
 
 <div class="section">
@@ -368,7 +363,6 @@
 
 <script>
 const SELF_KEY = 'zandaka-check-v1';
-const SUB_KEY = 'subscription-v1'; // サブスク管理(読み取り専用で参照)
 
 let state = loadState();
 
@@ -406,52 +400,6 @@ function saveState(){
 
 function newId(){
   return 'i' + Date.now() + Math.random().toString(16).slice(2);
-}
-
-// サブスク管理の「月次」サブスクを支出予定として同期する。
-// 名前ベースでマージし、日付・金額を自動更新する。年払い(yearly)のサブスクは対象外。
-function syncItemsFromSubscriptions(){
-  let sub;
-  try{
-    const raw = localStorage.getItem(SUB_KEY);
-    sub = raw ? JSON.parse(raw) : null;
-  }catch(e){ sub = null; }
-  if(!sub || !Array.isArray(sub.items)) return { ok:false };
-
-  const monthlyItems = sub.items.filter(it => it.cycle === 'monthly' && (it.name||'').trim() && parseFloat(it.amount));
-  const yearlySkipped = sub.items.filter(it => it.cycle === 'yearly' && (it.name||'').trim() && parseFloat(it.amount)).length;
-
-  const byName = new Map(state.items.map(it=>[(it.name||'').trim(), it]));
-  let added = 0, updated = 0;
-
-  // amountはサブスクからの自動更新用。既存項目があれば日付・金額・種別を最新化する。
-  function upsertAuto(name, day, amount){
-    if(byName.has(name)){
-      const existing = byName.get(name);
-      if(parseInt(existing.day) !== day || String(existing.amount) !== String(amount) || existing.type !== 'expense'){
-        existing.day = day;
-        existing.amount = amount;
-        existing.type = 'expense';
-        updated++;
-      }
-    }else{
-      const newItem = { id:newId(), day:day, name:name, amount:amount, type:'expense' };
-      state.items.push(newItem);
-      byName.set(name, newItem);
-      added++;
-    }
-  }
-
-  monthlyItems.forEach(it=>{
-    const name = it.name.trim();
-    let day = parseInt(it.day) || 1;
-    if(day < 1) day = 1;
-    if(day > 31) day = 31;
-    const amount = Math.round(parseFloat(it.amount)||0);
-    upsertAuto(name, day, amount);
-  });
-
-  return { ok:true, added, updated, yearlySkipped };
 }
 
 function todayDay(){
@@ -635,32 +583,6 @@ document.getElementById('addItemBtn').addEventListener('click', ()=>{
   state.items.push({ id:newId(), day:todayDay(), name:'', amount:'', type:'expense' });
   saveState();
   renderAll();
-});
-
-document.getElementById('reloadSubBtn').addEventListener('click', ()=>{
-  const result = syncItemsFromSubscriptions();
-  if(!result.ok){
-    alert('サブスク管理のデータが見つかりませんでした。先にサブスク管理でサブスクを登録してください。');
-    return;
-  }
-  saveState();
-  renderAll();
-  if(result.added === 0 && result.updated === 0){
-    let msg = 'サブスク管理との差分はありませんでした';
-    const notes = [];
-    if(result.yearlySkipped > 0) notes.push(`年払い${result.yearlySkipped}件`);
-    if(notes.length) msg += `(${notes.join('、')}は対象外のため未反映です)`;
-    alert(msg);
-  }else{
-    const parts = [];
-    if(result.added > 0) parts.push(`新規追加 ${result.added}件`);
-    if(result.updated > 0) parts.push(`既存の予定を更新 ${result.updated}件`);
-    let msg = parts.join(' / ');
-    const notes = [];
-    if(result.yearlySkipped > 0) notes.push(`年払い${result.yearlySkipped}件`);
-    if(notes.length) msg += `\n(${notes.join('、')}は対象外のため未反映です)`;
-    alert(msg);
-  }
 });
 
 renderAll();

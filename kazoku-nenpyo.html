@@ -247,12 +247,22 @@
     background:var(--today-light);
   }
   table.nenpyo tr.is-current td.col-year{ color:var(--today); }
+  table.nenpyo td.col-balance{
+    text-align:right;
+    font-weight:700;
+  }
+  table.nenpyo th.col-balance{ text-align:right; }
+  table.nenpyo td.col-balance.is-negative{ color:#b5654f; }
 
   .legend-note{ font-size:11px; color:var(--sub); text-align:center; margin-top:8px; line-height:1.7; }
-  .lifeplan-link-note{
-    font-size:11px; color:var(--sub); text-align:center; margin-top:6px; line-height:1.7;
-  }
-  .lifeplan-link-note a{ color:var(--main); font-weight:600; }
+
+  /* --- キャッシュフロー設定・サマリー --- */
+  .cf-summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .cf-summary-box{ background:#fafaf8; border-radius:8px; padding:10px 12px; }
+  .cf-summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .cf-summary-box .value{ font-size:16px; font-weight:700; color:var(--main); }
+  .cf-summary-box.full{ grid-column:1 / -1; }
+  .cf-note{ font-size:11px; color:var(--sub); line-height:1.7; margin-top:8px; }
 
   .footer-note{
     text-align:center; font-size:11px; color:var(--sub);
@@ -264,25 +274,26 @@
 
 <header>
   <h1>家族年表</h1>
-  <div class="sub-text">家族それぞれの年齢の推移と、結婚・進学・退職などのライフイベントを1つの年表にまとめて確認できます(ライフプラン作成ツールの③と同じデータです)</div>
+  <div class="sub-text">家族それぞれの年齢の推移と、結婚・進学・退職などのライフイベントを1つの年表にまとめて確認できます。年間収支計画表の年間差引も組み合わせて、将来の収支の推移(キャッシュフロー表)も見られます</div>
   <nav class="app-nav">
     <a href="index.html">年間収支</a>
     <a href="tokubetsuhi.html">特別費の積立</a>
-    <a href="subscription.html">サブスク管理</a>
-    <a href="card.html">カード管理</a>
     <a href="hiwari-kakeibo.html">残高チェック</a>
-    <a href="lifeplan.html">ライフプラン</a>
     <a href="kazoku-nenpyo.html" class="active">家族年表</a>
   </nav>
 </header>
 
 <div class="section">
-  <div class="section-title"><span>表示年数</span></div>
-  <div class="section-desc">ライフプラン作成ツールの「何年先まで見るか」と共通の設定です(変更するとライフプラン側の将来シミュレーションの年数も変わります)</div>
+  <div class="section-title"><span>表示年数・開始残高</span></div>
+  <div class="section-desc">今の貯蓄・資産の合計額(わかる範囲でOK)を入れておくと、下のキャッシュフロー表の残高がより実態に近づきます</div>
   <div class="settings-row">
     <label>
       <span class="lbl">表示する年数</span>
       <input type="number" id="simYearsInput" min="1" max="60">
+    </label>
+    <label>
+      <span class="lbl">開始残高(今の貯蓄・資産)</span>
+      <input type="number" id="startBalanceInput" placeholder="例: 3000000">
     </label>
   </div>
 </div>
@@ -303,46 +314,48 @@
     <span>ライフイベント</span>
     <span class="count" id="eventCount"></span>
   </div>
-  <div class="section-desc">結婚・進学・住宅取得・退職など、今後の予定を「金額(±)」つきで入力できます(金額は空欄でもOK)</div>
+  <div class="section-desc">結婚・進学・住宅取得・退職など、今後の予定を「金額(±)」つきで入力できます(支出はマイナス、収入や退職金などのプラスの入りはそのままの金額。金額は空欄でもOK)</div>
   <div id="eventList"></div>
   <div class="empty-note" id="eventEmptyNote" style="display:none;">イベントがありません。下のボタンから追加してください</div>
   <button class="add-item-btn" id="addEventBtn">＋ イベントを追加</button>
 </div>
 
 <div class="section main-section">
-  <div class="section-title"><span>年表</span></div>
+  <div class="section-title"><span>年表・キャッシュフロー表</span></div>
   <div class="table-wrap">
     <table class="nenpyo" id="nenpyoTable"></table>
   </div>
-  <div class="legend-note">オレンジ色の行は基準年(今年)です／イベント欄には該当年の予定が表示されます</div>
-  <div class="lifeplan-link-note">この内容はそのまま<a href="lifeplan.html">ライフプラン作成ツール</a>の③にも反映されています</div>
+  <div class="legend-note">オレンジ色の行は今年です／イベント欄には該当年の予定が表示されます／残高は「開始残高＋年間収支計画表の年間差引の累計±イベント金額」で計算しています</div>
+  <div class="cf-summary-grid">
+    <div class="cf-summary-box">
+      <div class="label">年間収支計画表の年間差引</div>
+      <div class="value" id="cfAnnualBalance">¥0</div>
+    </div>
+    <div class="cf-summary-box">
+      <div class="label" id="cfFinalYearLabel">最終年の残高</div>
+      <div class="value" id="cfFinalBalance">¥0</div>
+    </div>
+  </div>
+  <div class="cf-note" id="cfNote"></div>
 </div>
 
 <div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
 
 <script>
-// ライフプラン作成ツールと全く同じlocalStorageキー・データ構造を共有する。
-// (家族メンバー・イベント・表示年数だけをこのページで編集し、他の項目(家計・資産・保険など)はそのまま保持する)
-const STORAGE_KEY = 'lifeplan-tsukurikata-v1';
+const STORAGE_KEY = 'kazoku-nenpyo-v2';
+const OLD_LIFEPLAN_KEY = 'lifeplan-tsukurikata-v1'; // 旧・ライフプラン作成ツール(廃止済み。家族メンバー・イベント・表示年数だけ1回だけ引き継ぐ)
+const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
 
 const defaultData = {
-  householdName: '',
-  currentAge: '',
   simYears: 30,
-  income: [{name:'給与(夫)', amount:0},{name:'給与(妻)', amount:0}],
-  fixed: [{name:'家賃・住宅ローン', amount:0},{name:'保険料', amount:0},{name:'通信費', amount:0}],
-  variable: [{name:'食費', amount:0},{name:'日用品', amount:0},{name:'交際費・娯楽', amount:0}],
-  assets: [{name:'現金・預金', amount:0},{name:'投資(NISA/iDeCoなど)', amount:0}],
-  liabilities: [{name:'住宅ローン残高', amount:0}],
+  startBalance: '',
   familyMembers: [{name:'自分', age:''}],
   events: [{yearOffset:5, name:'住宅取得の頭金', amount:-3000000}],
-  insurance: {life:false, medical:false, income:false, emergency:false},
-  insMemo: '',
-  migratedKazokuNenpyo: false,
-  currentStep: 0,
+  migratedFromLifeplan: false,
 };
 
 let data = loadData();
+migrateFromOldLifeplan();
 
 function loadData(){
   try{
@@ -354,8 +367,53 @@ function loadData(){
 function saveData(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){ console.error(e); }
 }
+
+// 旧・ライフプラン作成ツールに家族メンバー・イベント・表示年数が残っていれば、1回だけ引き継ぐ。
+function migrateFromOldLifeplan(){
+  if(data.migratedFromLifeplan) return;
+  try{
+    const raw = localStorage.getItem(OLD_LIFEPLAN_KEY);
+    if(raw){
+      const old = JSON.parse(raw);
+      if(old){
+        if(Array.isArray(old.familyMembers) && old.familyMembers.length){
+          data.familyMembers = old.familyMembers;
+        }
+        if(Array.isArray(old.events) && old.events.length){
+          data.events = old.events;
+        }
+        if(old.simYears){
+          data.simYears = old.simYears;
+        }
+      }
+    }
+  }catch(e){}
+  data.migratedFromLifeplan = true;
+  saveData();
+}
+
 function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 function escapeHtml(str){ return escapeAttr(str); }
+function yen(n){
+  const sign = n < 0 ? '-' : '';
+  return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
+}
+
+// 年間収支計画表から「年間差引(貯蓄・投資後)」を計算する(読み取り専用)。
+// index.htmlのupdateTotals()と同じ計算式(収入合計-支出合計-貯蓄投資合計)。
+function getAnnualBalance(){
+  try{
+    const raw = localStorage.getItem(ANNUAL_KEY);
+    if(!raw) return null;
+    const budget = JSON.parse(raw);
+    if(!budget || !Array.isArray(budget.income) || !Array.isArray(budget.expense)) return null;
+    const sumList = (list) => (list||[]).reduce((s,it)=> s + ((parseFloat(it.amount)||0) * (parseFloat(it.count)||0)), 0);
+    const incomeTotal = sumList(budget.income);
+    const expenseTotal = sumList(budget.expense);
+    const savingTotal = sumList(budget.saving);
+    return incomeTotal - expenseTotal - savingTotal;
+  }catch(e){ return null; }
+}
 
 /* ---------- 家族メンバー ---------- */
 function renderMemberList(){
@@ -424,7 +482,7 @@ function renderEventList(){
 
     nameInput.addEventListener('input', e=>{ ev.name = e.target.value; saveData(); renderTable(); });
     yearInput.addEventListener('input', e=>{ ev.yearOffset = parseInt(e.target.value)||0; saveData(); renderTable(); });
-    amountInput.addEventListener('input', e=>{ ev.amount = e.target.value===''?0:(parseFloat(e.target.value)||0); saveData(); });
+    amountInput.addEventListener('input', e=>{ ev.amount = e.target.value===''?0:(parseFloat(e.target.value)||0); saveData(); renderTable(); });
     delBtn.addEventListener('click', ()=>{
       data.events.splice(idx,1);
       saveData(); renderEventList(); renderTable();
@@ -439,10 +497,15 @@ document.getElementById('addEventBtn').addEventListener('click', ()=>{
   renderTable();
 });
 
-/* ---------- 年表テーブル ---------- */
+/* ---------- 年表・キャッシュフロー表 ---------- */
 function renderTable(){
   const baseYear = new Date().getFullYear();
   const years = Math.max(1, Math.min(60, parseInt(data.simYears) || 30));
+  const annualBalance = getAnnualBalance();
+  const hasAnnualBalance = annualBalance !== null;
+  const startBalance = parseFloat(data.startBalance) || 0;
+
+  document.getElementById('cfAnnualBalance').textContent = hasAnnualBalance ? yen(annualBalance) + '/年' : '未入力';
 
   const table = document.getElementById('nenpyoTable');
 
@@ -450,14 +513,24 @@ function renderTable(){
   data.familyMembers.forEach(m=>{
     thead += `<th>${escapeHtml(m.name || '（無題）')}</th>`;
   });
-  thead += '<th class="col-event">できごと</th></tr></thead>';
+  thead += '<th class="col-event">できごと</th><th class="col-balance">残高</th></tr></thead>';
 
   let tbody = '<tbody>';
+  let running = startBalance;
+  let finalBalance = startBalance;
   for(let offset=0; offset<years; offset++){
     const year = baseYear + offset;
     const isCurrent = offset === 0;
     const eventsThisYear = data.events.filter(ev => (parseInt(ev.yearOffset)||0) === offset && ev.name);
     const hasEvent = eventsThisYear.length > 0;
+    const eventAmountThisYear = eventsThisYear.reduce((s,ev)=> s + (parseFloat(ev.amount)||0), 0);
+
+    if(offset > 0){
+      running += (hasAnnualBalance ? annualBalance : 0) + eventAmountThisYear;
+    }else{
+      running += eventAmountThisYear;
+    }
+    finalBalance = running;
 
     tbody += `<tr class="${isCurrent?'is-current':''} ${hasEvent?'has-event':''}">`;
     tbody += `<td class="col-year">${year}年${isCurrent?'(今年)':''}</td>`;
@@ -466,17 +539,34 @@ function renderTable(){
       tbody += `<td>${age === '' ? '－' : age + '歳'}</td>`;
     });
     tbody += `<td class="col-event">${eventsThisYear.map(ev=>escapeHtml(ev.name)).join('、') || ''}</td>`;
+    tbody += `<td class="col-balance ${running<0?'is-negative':''}">${yen(running)}</td>`;
     tbody += '</tr>';
   }
   tbody += '</tbody>';
 
   table.innerHTML = thead + tbody;
+
+  document.getElementById('cfFinalYearLabel').textContent = `${years}年後の残高`;
+  const finalEl = document.getElementById('cfFinalBalance');
+  finalEl.textContent = yen(finalBalance);
+  finalEl.style.color = finalBalance < 0 ? '#b5654f' : '';
+
+  const note = document.getElementById('cfNote');
+  note.textContent = hasAnnualBalance
+    ? ''
+    : '※年間収支計画表がまだ入力されていないため、年間差引は0円として計算しています。年間収支計画表に収入・支出を入力すると反映されます。';
 }
 
-/* ---------- 表示年数設定 ---------- */
+/* ---------- 表示年数・開始残高の設定 ---------- */
 document.getElementById('simYearsInput').value = data.simYears;
 document.getElementById('simYearsInput').addEventListener('input', e=>{
   data.simYears = parseInt(e.target.value)||30;
+  saveData();
+  renderTable();
+});
+document.getElementById('startBalanceInput').value = data.startBalance;
+document.getElementById('startBalanceInput').addEventListener('input', e=>{
+  data.startBalance = e.target.value;
   saveData();
   renderTable();
 });
