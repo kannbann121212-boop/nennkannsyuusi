@@ -284,16 +284,26 @@
 </header>
 
 <div class="section">
-  <div class="section-title"><span>表示年数・開始残高</span></div>
-  <div class="section-desc">今の貯蓄・資産の合計額(わかる範囲でOK)を入れておくと、下のキャッシュフロー表の残高がより実態に近づきます</div>
+  <div class="section-title"><span>表示年数・残高の設定</span></div>
+  <div class="section-desc">今の貯蓄・資産の合計額と、NISAなど投資分の評価額・想定利回りを入れておくと、下のキャッシュフロー表がより実態に近づきます</div>
   <div class="settings-row">
     <label>
       <span class="lbl">表示する年数</span>
       <input type="number" id="simYearsInput" min="1" max="60">
     </label>
     <label>
-      <span class="lbl">開始残高(今の貯蓄・資産)</span>
+      <span class="lbl">開始残高(現金・預金)</span>
       <input type="number" id="startBalanceInput" placeholder="例: 3000000">
+    </label>
+  </div>
+  <div class="settings-row" style="margin-top:8px;">
+    <label>
+      <span class="lbl">投資の開始残高(NISAなど今の評価額)</span>
+      <input type="number" id="investStartInput" placeholder="例: 1000000">
+    </label>
+    <label>
+      <span class="lbl">投資の想定利回り(年率%)</span>
+      <input type="number" id="investRateInput" placeholder="例: 3" step="0.1">
     </label>
   </div>
 </div>
@@ -325,15 +335,27 @@
   <div class="table-wrap">
     <table class="nenpyo" id="nenpyoTable"></table>
   </div>
-  <div class="legend-note">オレンジ色の行は今年です／イベント欄には該当年の予定が表示されます／残高は「開始残高＋年間収支計画表の年間差引の累計±イベント金額」で計算しています</div>
+  <div class="legend-note">オレンジ色の行は今年です／イベント欄には該当年の予定が表示されます／「現金残高」は開始残高＋年間差引(貯蓄・投資を除く分)の累計±イベント金額、「投資残高」は投資の開始残高に年間収支計画表の貯蓄・投資合計を毎年積み立てながら想定利回りで運用したと仮定した金額です</div>
   <div class="cf-summary-grid">
     <div class="cf-summary-box">
-      <div class="label">年間収支計画表の年間差引</div>
+      <div class="label">年間差引(貯蓄・投資後)</div>
       <div class="value" id="cfAnnualBalance">¥0</div>
     </div>
     <div class="cf-summary-box">
-      <div class="label" id="cfFinalYearLabel">最終年の残高</div>
+      <div class="label">年間の貯蓄・投資額</div>
+      <div class="value" id="cfAnnualSaving">¥0</div>
+    </div>
+    <div class="cf-summary-box">
+      <div class="label" id="cfFinalYearLabel">最終年の現金残高</div>
       <div class="value" id="cfFinalBalance">¥0</div>
+    </div>
+    <div class="cf-summary-box">
+      <div class="label" id="cfFinalInvestLabel">最終年の投資残高</div>
+      <div class="value" id="cfFinalInvest">¥0</div>
+    </div>
+    <div class="cf-summary-box full">
+      <div class="label" id="cfFinalTotalLabel">最終年の合計(現金+投資)</div>
+      <div class="value" id="cfFinalTotal">¥0</div>
     </div>
   </div>
   <div class="cf-note" id="cfNote"></div>
@@ -349,6 +371,8 @@ const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み�
 const defaultData = {
   simYears: 30,
   startBalance: '',
+  investStart: '',
+  investRate: '',
   familyMembers: [{name:'自分', age:''}],
   events: [{yearOffset:5, name:'住宅取得の頭金', amount:-3000000}],
   migratedFromLifeplan: false,
@@ -399,9 +423,9 @@ function yen(n){
   return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
 }
 
-// 年間収支計画表から「年間差引(貯蓄・投資後)」を計算する(読み取り専用)。
+// 年間収支計画表から「年間差引(貯蓄・投資後)」と「年間の貯蓄・投資額」を計算する(読み取り専用)。
 // index.htmlのupdateTotals()と同じ計算式(収入合計-支出合計-貯蓄投資合計)。
-function getAnnualBalance(){
+function getAnnualFigures(){
   try{
     const raw = localStorage.getItem(ANNUAL_KEY);
     if(!raw) return null;
@@ -411,7 +435,7 @@ function getAnnualBalance(){
     const incomeTotal = sumList(budget.income);
     const expenseTotal = sumList(budget.expense);
     const savingTotal = sumList(budget.saving);
-    return incomeTotal - expenseTotal - savingTotal;
+    return { annualBalance: incomeTotal - expenseTotal - savingTotal, savingTotal };
   }catch(e){ return null; }
 }
 
@@ -501,11 +525,16 @@ document.getElementById('addEventBtn').addEventListener('click', ()=>{
 function renderTable(){
   const baseYear = new Date().getFullYear();
   const years = Math.max(1, Math.min(60, parseInt(data.simYears) || 30));
-  const annualBalance = getAnnualBalance();
-  const hasAnnualBalance = annualBalance !== null;
+  const figures = getAnnualFigures();
+  const hasFigures = figures !== null;
+  const annualBalance = hasFigures ? figures.annualBalance : 0;
+  const savingTotal = hasFigures ? figures.savingTotal : 0;
   const startBalance = parseFloat(data.startBalance) || 0;
+  const investStart = parseFloat(data.investStart) || 0;
+  const investRate = (parseFloat(data.investRate) || 0) / 100;
 
-  document.getElementById('cfAnnualBalance').textContent = hasAnnualBalance ? yen(annualBalance) + '/年' : '未入力';
+  document.getElementById('cfAnnualBalance').textContent = hasFigures ? yen(annualBalance) + '/年' : '未入力';
+  document.getElementById('cfAnnualSaving').textContent = hasFigures ? yen(savingTotal) + '/年' : '未入力';
 
   const table = document.getElementById('nenpyoTable');
 
@@ -513,11 +542,13 @@ function renderTable(){
   data.familyMembers.forEach(m=>{
     thead += `<th>${escapeHtml(m.name || '（無題）')}</th>`;
   });
-  thead += '<th class="col-event">できごと</th><th class="col-balance">残高</th></tr></thead>';
+  thead += '<th class="col-event">できごと</th><th class="col-balance">現金残高</th><th class="col-balance">投資残高</th><th class="col-balance">合計</th></tr></thead>';
 
   let tbody = '<tbody>';
   let running = startBalance;
+  let investBalance = investStart;
   let finalBalance = startBalance;
+  let finalInvest = investStart;
   for(let offset=0; offset<years; offset++){
     const year = baseYear + offset;
     const isCurrent = offset === 0;
@@ -526,11 +557,14 @@ function renderTable(){
     const eventAmountThisYear = eventsThisYear.reduce((s,ev)=> s + (parseFloat(ev.amount)||0), 0);
 
     if(offset > 0){
-      running += (hasAnnualBalance ? annualBalance : 0) + eventAmountThisYear;
+      running += (hasFigures ? annualBalance : 0) + eventAmountThisYear;
+      investBalance = investBalance * (1 + investRate) + (hasFigures ? savingTotal : 0);
     }else{
       running += eventAmountThisYear;
     }
     finalBalance = running;
+    finalInvest = investBalance;
+    const total = running + investBalance;
 
     tbody += `<tr class="${isCurrent?'is-current':''} ${hasEvent?'has-event':''}">`;
     tbody += `<td class="col-year">${year}年${isCurrent?'(今年)':''}</td>`;
@@ -540,21 +574,32 @@ function renderTable(){
     });
     tbody += `<td class="col-event">${eventsThisYear.map(ev=>escapeHtml(ev.name)).join('、') || ''}</td>`;
     tbody += `<td class="col-balance ${running<0?'is-negative':''}">${yen(running)}</td>`;
+    tbody += `<td class="col-balance">${yen(investBalance)}</td>`;
+    tbody += `<td class="col-balance ${total<0?'is-negative':''}">${yen(total)}</td>`;
     tbody += '</tr>';
   }
   tbody += '</tbody>';
 
   table.innerHTML = thead + tbody;
 
-  document.getElementById('cfFinalYearLabel').textContent = `${years}年後の残高`;
+  document.getElementById('cfFinalYearLabel').textContent = `${years}年後の現金残高`;
   const finalEl = document.getElementById('cfFinalBalance');
   finalEl.textContent = yen(finalBalance);
   finalEl.style.color = finalBalance < 0 ? '#b5654f' : '';
 
+  document.getElementById('cfFinalInvestLabel').textContent = `${years}年後の投資残高`;
+  document.getElementById('cfFinalInvest').textContent = yen(finalInvest);
+
+  document.getElementById('cfFinalTotalLabel').textContent = `${years}年後の合計(現金+投資)`;
+  const finalTotalEl = document.getElementById('cfFinalTotal');
+  const finalTotal = finalBalance + finalInvest;
+  finalTotalEl.textContent = yen(finalTotal);
+  finalTotalEl.style.color = finalTotal < 0 ? '#b5654f' : '';
+
   const note = document.getElementById('cfNote');
-  note.textContent = hasAnnualBalance
+  note.textContent = hasFigures
     ? ''
-    : '※年間収支計画表がまだ入力されていないため、年間差引は0円として計算しています。年間収支計画表に収入・支出を入力すると反映されます。';
+    : '※年間収支計画表がまだ入力されていないため、年間差引・貯蓄投資額は0円として計算しています。年間収支計画表に収入・支出・貯蓄投資を入力すると反映されます。';
 }
 
 /* ---------- 表示年数・開始残高の設定 ---------- */
@@ -567,6 +612,18 @@ document.getElementById('simYearsInput').addEventListener('input', e=>{
 document.getElementById('startBalanceInput').value = data.startBalance;
 document.getElementById('startBalanceInput').addEventListener('input', e=>{
   data.startBalance = e.target.value;
+  saveData();
+  renderTable();
+});
+document.getElementById('investStartInput').value = data.investStart;
+document.getElementById('investStartInput').addEventListener('input', e=>{
+  data.investStart = e.target.value;
+  saveData();
+  renderTable();
+});
+document.getElementById('investRateInput').value = data.investRate;
+document.getElementById('investRateInput').addEventListener('input', e=>{
+  data.investRate = e.target.value;
   saveData();
   renderTable();
 });
