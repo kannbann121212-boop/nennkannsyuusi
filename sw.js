@@ -1,11 +1,12 @@
 // 家計管理ツール一式 用のシンプルなサービスワーカー
 // オフラインでも各ツールを開けるように、主要ファイルをキャッシュします
-const CACHE_NAME = 'kakei-tools-v3';
+const CACHE_NAME = 'kakei-tools-v4';
 const ASSETS = [
   'index.html',
   'tokubetsuhi.html',
   'hiwari-kakeibo.html',
   'kazoku-nenpyo.html',
+  'shisan-suii.html',
   'manifest.json',
   'icon-192.png',
   'icon-512.png',

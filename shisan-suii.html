@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>資産推移</title>
+<style>
+  :root{
+    --bg:#f5f5f3;
+    --card:#ffffff;
+    --border:#e2e0db;
+    --text:#2b2b28;
+    --sub:#8a8680;
+    --main:#6b4fa0;
+    --main-light:#efe9f7;
+    --income:#4a7c6e;
+    --expense:#b5654f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    max-width:480px;
+    margin:0 auto;
+    padding-bottom:40px;
+  }
+  header{
+    padding:18px 16px 12px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{ font-size:17px; margin:0 0 2px; font-weight:600; }
+  .sub-text{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.6; }
+  .app-nav{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .app-nav::-webkit-scrollbar{ display:none; }
+  .app-nav a{
+    flex-shrink:0;
+    font-size:11px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--border);
+    color:var(--sub);
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .app-nav a.active{
+    background:var(--text);
+    border-color:var(--text);
+    color:#fff;
+    font-weight:600;
+  }
+
+  .section{
+    margin:14px 12px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:12px 14px;
+  }
+  .section.main-section{ border-top:3px solid var(--main); }
+  .section-title{
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-desc{ font-size:12px; color:var(--sub); margin:-4px 0 10px; line-height:1.6; }
+
+  /* --- 設定 --- */
+  .settings-row{ display:flex; gap:10px; }
+  .settings-row + .settings-row{ margin-top:8px; }
+  .settings-row label{ flex:1; display:block; }
+  .settings-row .lbl{ font-size:11px; color:var(--sub); margin-bottom:4px; display:block; }
+  .settings-row input[type=number]{
+    width:100%;
+    font-size:13px;
+    padding:8px 8px;
+    text-align:right;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fafaf8;
+    color:var(--text);
+  }
+
+  /* --- 詳細テーブル --- */
+  .table-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    margin:0 -14px;
+    padding:0 14px;
+  }
+  table.cf{
+    border-collapse:collapse;
+    width:100%;
+    min-width:100%;
+    font-size:11px;
+  }
+  table.cf th, table.cf td{
+    padding:7px 6px;
+    text-align:right;
+    white-space:nowrap;
+    border-bottom:1px solid #f0efec;
+  }
+  table.cf th{
+    font-size:10px;
+    color:var(--sub);
+    font-weight:600;
+    border-bottom:1px solid var(--border);
+    position:sticky;
+    top:0;
+    background:var(--card);
+  }
+  table.cf td.col-year, table.cf th.col-year{ text-align:left; }
+  table.cf td.col-year{ font-weight:700; color:var(--text); }
+  table.cf td.col-event, table.cf th.col-event{
+    text-align:left;
+    white-space:normal;
+    min-width:100px;
+    color:var(--main);
+    font-weight:600;
+  }
+  table.cf td.col-income{ color:var(--income); }
+  table.cf td.col-expense{ color:var(--expense); }
+  table.cf td.col-balance{ font-weight:700; }
+  table.cf td.is-negative{ color:var(--expense); }
+  table.cf tr.is-current td{ background:var(--main-light); }
+  table.cf tr.is-current td.col-year{ color:var(--main); }
+
+  .legend-note{ font-size:11px; color:var(--sub); text-align:center; margin-top:8px; line-height:1.7; }
+  .related-link-note{
+    font-size:11px; color:var(--sub); text-align:center; margin-top:6px; line-height:1.7;
+  }
+  .related-link-note a{ color:var(--main); font-weight:600; }
+
+  /* --- サマリー --- */
+  .summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .summary-box{ background:#fafaf8; border-radius:8px; padding:10px 12px; }
+  .summary-box .label{ font-size:11px; color:var(--sub); margin-bottom:2px; }
+  .summary-box .value{ font-size:16px; font-weight:700; color:var(--main); }
+  .summary-box.full{ grid-column:1 / -1; }
+  .cf-note{ font-size:11px; color:var(--sub); line-height:1.7; margin-top:8px; }
+
+  .footer-note{
+    text-align:center; font-size:11px; color:var(--sub);
+    margin:20px 20px 0; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>資産推移</h1>
+  <div class="sub-text">年間収支計画表の年間差引と、家族年表のライフイベントをもとに、将来の現金・投資残高の推移を年ごとに細かく確認できます</div>
+  <nav class="app-nav">
+    <a href="index.html">年間収支</a>
+    <a href="tokubetsuhi.html">特別費の積立</a>
+    <a href="hiwari-kakeibo.html">残高チェック</a>
+    <a href="kazoku-nenpyo.html">家族年表</a>
+    <a href="shisan-suii.html" class="active">資産推移</a>
+  </nav>
+</header>
+
+<div class="section">
+  <div class="section-title"><span>設定</span></div>
+  <div class="section-desc">現金・投資、それぞれの今の残高を入れておくと、実態に近い推移になります</div>
+  <div class="settings-row">
+    <label>
+      <span class="lbl">表示する年数</span>
+      <input type="number" id="simYearsInput" min="1" max="60">
+    </label>
+    <label>
+      <span class="lbl">開始残高(現金・預金)</span>
+      <input type="number" id="startBalanceInput" placeholder="例: 3000000">
+    </label>
+  </div>
+  <div class="settings-row">
+    <label>
+      <span class="lbl">投資の開始残高(NISAなど今の評価額)</span>
+      <input type="number" id="investStartInput" placeholder="例: 1000000">
+    </label>
+    <label>
+      <span class="lbl">投資の想定利回り(年率%)</span>
+      <input type="number" id="investRateInput" placeholder="例: 3" step="0.1">
+    </label>
+  </div>
+</div>
+
+<div class="section main-section">
+  <div class="section-title"><span>年別の内訳</span></div>
+  <div class="table-wrap">
+    <table class="cf" id="cfTable"></table>
+  </div>
+  <div class="legend-note">収入・支出・貯蓄投資は年間収支計画表の金額を毎年一定として計算しています／イベントは家族年表の内容です</div>
+  <div class="related-link-note">収入・支出の内容を変えたいときは<a href="index.html">年間収支</a>を、イベントを変えたいときは<a href="kazoku-nenpyo.html">家族年表</a>を編集してください</div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span>サマリー</span></div>
+  <div class="summary-grid">
+    <div class="summary-box">
+      <div class="label">年間差引(貯蓄・投資後)</div>
+      <div class="value" id="cfAnnualBalance">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">年間の貯蓄・投資額</div>
+      <div class="value" id="cfAnnualSaving">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label" id="cfFinalYearLabel">最終年の現金残高</div>
+      <div class="value" id="cfFinalBalance">¥0</div>
+    </div>
+    <div class="summary-box">
+      <div class="label" id="cfFinalInvestLabel">最終年の投資残高</div>
+      <div class="value" id="cfFinalInvest">¥0</div>
+    </div>
+    <div class="summary-box full">
+      <div class="label" id="cfFinalTotalLabel">最終年の合計(現金+投資)</div>
+      <div class="value" id="cfFinalTotal">¥0</div>
+    </div>
+  </div>
+  <div class="cf-note" id="cfNote"></div>
+</div>
+
+<div class="footer-note">入力内容は自動的にこの端末に保存されます</div>
+
+<script>
+const SELF_KEY = 'shisan-suii-v1';
+const ANNUAL_KEY = 'nenkan-shuushi-keikaku-v2'; // 年間収支計画表(読み取り専用で参照)
+const KAZOKU_KEY = 'kazoku-nenpyo-v2'; // 家族年表(読み取り専用で参照。イベントの取得に使用)
+
+const defaultData = {
+  simYears: 30,
+  startBalance: '',
+  investStart: '',
+  investRate: '',
+};
+
+let data = loadData();
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(SELF_KEY);
+    if(!raw) return JSON.parse(JSON.stringify(defaultData));
+    return {...JSON.parse(JSON.stringify(defaultData)), ...JSON.parse(raw)};
+  }catch(e){ return JSON.parse(JSON.stringify(defaultData)); }
+}
+function saveData(){
+  try{ localStorage.setItem(SELF_KEY, JSON.stringify(data)); }catch(e){ console.error(e); }
+}
+function yen(n){
+  const sign = n < 0 ? '-' : '';
+  return sign + '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
+}
+function escapeAttr(str){ const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+function escapeHtml(str){ return escapeAttr(str); }
+
+// 年間収支計画表から収入合計・支出合計・貯蓄投資合計・年間差引を計算する(読み取り専用)。
+// index.htmlのupdateTotals()と同じ計算式。
+function getAnnualFigures(){
+  try{
+    const raw = localStorage.getItem(ANNUAL_KEY);
+    if(!raw) return null;
+    const budget = JSON.parse(raw);
+    if(!budget || !Array.isArray(budget.income) || !Array.isArray(budget.expense)) return null;
+    const sumList = (list) => (list||[]).reduce((s,it)=> s + ((parseFloat(it.amount)||0) * (parseFloat(it.count)||0)), 0);
+    const incomeTotal = sumList(budget.income);
+    const expenseTotal = sumList(budget.expense);
+    const savingTotal = sumList(budget.saving);
+    return { incomeTotal, expenseTotal, savingTotal, annualBalance: incomeTotal - expenseTotal - savingTotal };
+  }catch(e){ return null; }
+}
+
+// 家族年表からライフイベント(年数・名前・金額)を取得する(読み取り専用)。
+function getFamilyEvents(){
+  try{
+    const raw = localStorage.getItem(KAZOKU_KEY);
+    if(!raw) return [];
+    const kz = JSON.parse(raw);
+    if(!kz || !Array.isArray(kz.events)) return [];
+    return kz.events;
+  }catch(e){ return []; }
+}
+
+/* ---------- 年別の内訳テーブル ---------- */
+function renderTable(){
+  const baseYear = new Date().getFullYear();
+  const years = Math.max(1, Math.min(60, parseInt(data.simYears) || 30));
+  const figures = getAnnualFigures();
+  const hasFigures = figures !== null;
+  const incomeTotal = hasFigures ? figures.incomeTotal : 0;
+  const expenseTotal = hasFigures ? figures.expenseTotal : 0;
+  const savingTotal = hasFigures ? figures.savingTotal : 0;
+  const annualBalance = hasFigures ? figures.annualBalance : 0;
+  const events = getFamilyEvents();
+
+  const startBalance = parseFloat(data.startBalance) || 0;
+  const investStart = parseFloat(data.investStart) || 0;
+  const investRate = (parseFloat(data.investRate) || 0) / 100;
+
+  document.getElementById('cfAnnualBalance').textContent = hasFigures ? yen(annualBalance) + '/年' : '未入力';
+  document.getElementById('cfAnnualSaving').textContent = hasFigures ? yen(savingTotal) + '/年' : '未入力';
+
+  const table = document.getElementById('cfTable');
+  let thead = `<thead><tr>
+    <th class="col-year">年</th>
+    <th>収入</th>
+    <th>支出</th>
+    <th>貯蓄投資</th>
+    <th>年間差引</th>
+    <th class="col-event">イベント</th>
+    <th>現金残高</th>
+    <th>投資残高</th>
+    <th>合計</th>
+  </tr></thead>`;
+
+  let tbody = '<tbody>';
+  let running = startBalance;
+  let investBalance = investStart;
+  let finalBalance = startBalance;
+  let finalInvest = investStart;
+
+  for(let offset=0; offset<years; offset++){
+    const year = baseYear + offset;
+    const isCurrent = offset === 0;
+    const eventsThisYear = events.filter(ev => (parseInt(ev.yearOffset)||0) === offset && ev.name);
+    const eventAmountThisYear = eventsThisYear.reduce((s,ev)=> s + (parseFloat(ev.amount)||0), 0);
+
+    if(offset > 0){
+      running += annualBalance + eventAmountThisYear;
+      investBalance = investBalance * (1 + investRate) + savingTotal;
+    }else{
+      running += eventAmountThisYear;
+    }
+    finalBalance = running;
+    finalInvest = investBalance;
+    const total = running + investBalance;
+
+    tbody += `<tr class="${isCurrent?'is-current':''}">`;
+    tbody += `<td class="col-year">${year}年${isCurrent?'(今年)':''}</td>`;
+    tbody += `<td class="col-income">${yen(incomeTotal)}</td>`;
+    tbody += `<td class="col-expense">${yen(expenseTotal)}</td>`;
+    tbody += `<td>${yen(savingTotal)}</td>`;
+    tbody += `<td class="${annualBalance<0?'is-negative':''}">${yen(annualBalance)}</td>`;
+    tbody += `<td class="col-event">${eventsThisYear.map(ev=>escapeHtml(ev.name)).join('、') || ''}</td>`;
+    tbody += `<td class="col-balance ${running<0?'is-negative':''}">${yen(running)}</td>`;
+    tbody += `<td class="col-balance">${yen(investBalance)}</td>`;
+    tbody += `<td class="col-balance ${total<0?'is-negative':''}">${yen(total)}</td>`;
+    tbody += '</tr>';
+  }
+  tbody += '</tbody>';
+  table.innerHTML = thead + tbody;
+
+  document.getElementById('cfFinalYearLabel').textContent = `${years}年後の現金残高`;
+  const finalEl = document.getElementById('cfFinalBalance');
+  finalEl.textContent = yen(finalBalance);
+  finalEl.style.color = finalBalance < 0 ? '#b5654f' : '';
+
+  document.getElementById('cfFinalInvestLabel').textContent = `${years}年後の投資残高`;
+  document.getElementById('cfFinalInvest').textContent = yen(finalInvest);
+
+  document.getElementById('cfFinalTotalLabel').textContent = `${years}年後の合計(現金+投資)`;
+  const finalTotalEl = document.getElementById('cfFinalTotal');
+  const finalTotal = finalBalance + finalInvest;
+  finalTotalEl.textContent = yen(finalTotal);
+  finalTotalEl.style.color = finalTotal < 0 ? '#b5654f' : '';
+
+  const notes = [];
+  if(!hasFigures) notes.push('年間収支計画表がまだ入力されていないため、収入・支出・貯蓄投資は0円として計算しています。');
+  if(events.length === 0) notes.push('家族年表にイベントが登録されていません。');
+  document.getElementById('cfNote').textContent = notes.join(' ');
+}
+
+/* ---------- 設定 ---------- */
+document.getElementById('simYearsInput').value = data.simYears;
+document.getElementById('simYearsInput').addEventListener('input', e=>{
+  data.simYears = parseInt(e.target.value)||30;
+  saveData();
+  renderTable();
+});
+document.getElementById('startBalanceInput').value = data.startBalance;
+document.getElementById('startBalanceInput').addEventListener('input', e=>{
+  data.startBalance = e.target.value;
+  saveData();
+  renderTable();
+});
+document.getElementById('investStartInput').value = data.investStart;
+document.getElementById('investStartInput').addEventListener('input', e=>{
+  data.investStart = e.target.value;
+  saveData();
+  renderTable();
+});
+document.getElementById('investRateInput').value = data.investRate;
+document.getElementById('investRateInput').addEventListener('input', e=>{
+  data.investRate = e.target.value;
+  saveData();
+  renderTable();
+});
+
+renderTable();
+</script>
+</body>
+</html>
